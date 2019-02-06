@@ -1,0 +1,10 @@
+{
+	"python.pythonPath": "${workspaceFolder}\\Python37-32\\python.exe",
+	"python.autoComplete.extraPaths": [
+		"${workspaceFolder}\\blender-2.80.0\\2.80\\python\\lib",
+		"${workspaceFolder}\\blender-2.80.0\\2.80\\scripts\\modules"
+	],
+	"python.linting.enabled": true,
+	"python.linting.pylintEnabled": false,
+	"python.linting.pep8Enabled": true
+}

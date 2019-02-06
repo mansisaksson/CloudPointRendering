@@ -1,0 +1,1 @@
+blender-2.80.0\blender.exe blendfile.blend --background --python src/main.py
