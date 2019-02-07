@@ -1,0 +1,7 @@
+[ ] list vertices on selected mesh
+
+[ ] Produce some form of voxel data
+    [ ] Voxel Color
+    [ ] Voxel Normal
+
+[ ] Convert voxel data to tree structure

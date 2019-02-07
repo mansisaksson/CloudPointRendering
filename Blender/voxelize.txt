@@ -1,0 +1,20 @@
+voxelSize = 0.1
+
+struct Voxel 
+{
+    Color
+    Normal
+}
+voxels[][][]
+
+box boundingBox = getBoundingBox
+
+layersX = boundingBox.width / voxelSize
+layersY = boundingBox.Depth / voxelSize
+layersZ = boundingBox.Height / voxelSize
+
+for each layerZ (z):
+    for each layerX (x):
+        for each layerY (y):
+            voxelWorldPos = boundingBox.StartPos + (x, y, z)
+            voxels[x][y][z] = { mesh.GetColorAt(voxelWorldPos), mesh.GetNormalAt(voxelWorldPos) }
