@@ -1,9 +1,7 @@
 import bpy
-from bpy import context
-
 
 def main():
-    obj = context.active_object
+    obj = bpy.context.selected_objects
     vertices = obj.data.vertices
 
     print(vertices[0])
