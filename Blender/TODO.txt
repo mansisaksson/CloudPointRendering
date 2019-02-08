@@ -1,7 +1,14 @@
-[ ] list vertices on selected mesh
+[x] list vertices on selected mesh
 
-[ ] Produce some form of voxel data
-    [ ] Voxel Color
-    [ ] Voxel Normal
+[x] Produce some form of voxel data
+    [x] Voxel Color
+    [x] Voxel Normal
+
+[ ] Debug draw the voxel data
+    This is important in order to debug import/export + any potential tree structure errors
 
 [ ] Convert voxel data to tree structure
+
+[ ] Save voxel data to some shader-readable format, e.g texture data
+
+[ ] Decide on shader env/program, best candidate is probably shader monkey or Unity

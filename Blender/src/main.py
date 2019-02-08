@@ -2,6 +2,7 @@ import bpy
 import sys
 import os
 import numpy as np
+import json
 from mathutils import Vector
 from typing import List, Set, Dict, Tuple, Optional
 
@@ -17,7 +18,7 @@ def vector3_to_str(vector: Tuple[float, float, float]):
     return "(" + str(vector[0]) + "," + str(vector[1]) + "," + str(vector[2]) + ")"
 
 
-def generate_voxel_data(mesh: bpy.types.Object):
+def generate_voxel_data(mesh: bpy.types.Object) -> Tuple[float, Vector, List[int]]:
     voxel_size = 0.5
     box = boundingBox.create_box(mesh.bound_box)
 
@@ -30,14 +31,14 @@ def generate_voxel_data(mesh: bpy.types.Object):
         (grid_dimensions[0], grid_dimensions[1], grid_dimensions[2]),
         dtype=[
             ('location', [
-                ('x', 'float'),
-                ('y', 'float'),
-                ('z', 'float')
+                ('x', 'int32'),
+                ('y', 'int32'),
+                ('z', 'int32')
             ]),
             ('normal', [
-                ('x', 'float'),
-                ('y', 'float'),
-                ('z', 'float')
+                ('x', 'uint8'),
+                ('y', 'uint8'),
+                ('z', 'uint8')
             ]),
             ('color', [
                 ('r', 'uint8'),
@@ -57,60 +58,27 @@ def generate_voxel_data(mesh: bpy.types.Object):
                 result = mesh.closest_point_on_mesh(voxel_location, voxel_size)  # type: Tuple[bool, Vector, Vector, int]
 
                 voxel_array[xc, yc, zc]['location'] = (voxel_location.x, voxel_location.y, voxel_location.z)
-                voxel_array[xc, yc, zc]['normal'] = (result[1].x, result[1].y, result[1].z)
+                if result[0]:
+                    voxel_array[xc, yc, zc]['normal'] = (result[1].x * 255, result[1].y * 255, result[1].z * 255)
+                voxel_array[xc, yc, zc]['color'] = (255, 255, 255)  # No point in adding color atm, better to focus on render algorithm
 
-    print(voxel_array)
-    return voxel_array
+    return voxel_size, box.size, voxel_array
 
 
 def main():
     for obj in bpy.context.selected_objects:
         print("Found Selected Object: " + obj.name)
         if obj.type == 'MESH':
-            # generate_voxel_data(obj)
+            voxel_data = generate_voxel_data(obj)
+            print(voxel_data)
+
+            path = dir + "\\export\\"
+            os.makedirs(path, exist_ok=True)
+            with open(path + "export_data.txt", "w") as file:
+                file.write(str(voxel_data))
 
             # img = bpy.data.images[0]  # type: bpy.types.Image
-
             # for pixel in img.pixels:
             #     print(pixel)
-
-            # for uvface in bpy.context.object.data.uv_textures.active.data:
-            #    uvface.image = img
-            # texture_coords.py
-
-            obj = bpy.context.active_object
-            mesh = obj.data
-
-            is_editmode = (obj.mode == 'EDIT')
-            if is_editmode:
-                bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-
-            uvtex = mesh.uv_textures.active
-            print("test start/n")
-            # adjust UVs
-            count = 0
-            for i, uv in enumerate(uvtex.data):
-                print(uvtex)
-                uvs = uv.uv1, uv.uv2, uv.uv3, uv.uv4
-
-                for j, v_idx in enumerate(mesh.faces[i].vertices):
-                    # Face index matches with uvtex.data index, 4 uvs belong to this face
-                    # v_idx points to that specific face vertices
-                    # vertex index starts from 0 and uvs also from 0, they match
-                    # Vertex UV coords are found
-                    print(uv)
-                    print(v_idx)
-                    print(j)
-                    print('/n')
-
-                #    print(uvs[0])
-                #    print(uvs[1])
-                #    print(uvs[2])
-                #    print(uvs[3])
-                #    print("/n")
-                count += 1
-            print("test end/n")
-            print("uv coords count: " + str(count))
-
 
 main()
