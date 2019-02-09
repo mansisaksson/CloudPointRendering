@@ -1,0 +1,64 @@
+
+voxel_array_size
+voxel_array
+
+struct tree
+    box_size // Can use this divided by the number of children to figure out size of nodes
+
+
+struct node
+    color
+    normal
+
+    child_1 // if this is 0 then we have no relevant color data in this child
+    child_2
+    child_3
+    child_4
+
+
+// Create initial nodes
+
+bottom_layer = // for each voxel, create a node
+
+layers = generate_layers_req(bottom_layer)
+
+
+function generate_layers_req(previous_layer, layers[]): // Recursively generate tree layers
+    layer = generate_new_layer(previous_layer)
+    if IsValidLayer(layer):
+        layers.add(layer)
+        generate_layers_req(layer, layers)
+
+    return layers
+
+
+function generate_new_layer(previous_layer):
+    child_base = 2
+    nodesPerChild = child_base^3 // 8 or the number of children per node
+    dimensions = previous_layer.size / nodesPerChild
+    new_layer = [dimensions.x][dimensions.y][dimensions.z]
+    for each x; x+=child_base
+        for each y; y+=child_base
+            for each z; z+=child_base
+                node_1 = previous_layer[x + 0][y + 0][z + 0]
+                node_2 = previous_layer[x + 0][y + 1][z + 0]
+                node_3 = previous_layer[x + 1][y + 0][z + 0]
+                node_4 = previous_layer[x + 1][y + 1][z + 0]
+
+                node_5 = previous_layer[x + 0][y + 0][z + 1]
+                node_6 = previous_layer[x + 0][y + 1][z + 1]
+                node_7 = previous_layer[x + 1][y + 0][z + 1]
+                node_8 = previous_layer[x + 1][y + 1][z + 1]
+
+                bottom_layer[x / nodesPerChild][y / nodesPerChild][z / nodesPerChild] = {
+                    avg_color(node_1, node_2...),
+                    avg_normal(node_1, node_2...)
+
+                    child_ptr(node_1)
+                    child_ptr(node_2)
+                    .
+                    .
+                    .
+                }
+
+    return new_layer
