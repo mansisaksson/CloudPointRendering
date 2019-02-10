@@ -176,8 +176,8 @@ def main():
                     for y in range(0, layer.shape[1]):
                         for x in range(0, layer.shape[0]):
                             r = layer[x, y, z]['color']['r']
-                            g = layer[x, y, z]['color']['r']
-                            b = layer[x, y, z]['color']['r']
+                            g = layer[x, y, z]['color']['g']
+                            b = layer[x, y, z]['color']['b']
                             a = 1.0
                             pixels[pixel_pos] = [r, g, b, a]
                             pixel_pos += 1
