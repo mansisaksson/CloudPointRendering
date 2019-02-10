@@ -1,0 +1,36 @@
+
+Voxel datan börjar längst ner i högra hörnet som illustrerat i denna bild.
+längst ner i hörnet på nästa lager blir har då index 16
+
+        _________________________
+       /  15  /  14 /  13 / 12  /|
+      /------------------------/ |
+     /  11  /  10 /  9  /  8  /| /
+    /------------------------/ |/
+   /  7   /  6  /  5  /  4  /| /
+  /------------------------/ |/
+ /  3   /  2  /  1  /  0  /| /
+/------------------------/ |/
+|  3  |   2  |  1  |  0  | /
+|_____|______|_____|_____|/
+
+
+Om vi då tar lager 2 av kuben som renderas får vi denna layout:
+
+   ---------------
+  /   7   /  6  /|
+ /-------------/ |
+/   5   /  4  /|6|
+-------------/ | |
+|      |     |4 /|
+|  5   |  4  | / |
+|      |     |/| |
+|------|-----| |2|
+|      |     |0| |
+|  1   |  0  | |/
+|______|_____|/
+
+(3 ligger bakom 1)
+
+minnesuppsättningen blir då:
+[rgb_0, rgb_1, rgb_2, rgb_3, rgb_4, rgb_5, rgb_6, rgb_7]
