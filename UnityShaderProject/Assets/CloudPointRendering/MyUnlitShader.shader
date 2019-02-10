@@ -34,8 +34,8 @@
 
             struct v2f
             {
+				float4 pos : SV_POSITION;
                 float2 uv : TEXCOORD0;
-                float4 vertex : SV_POSITION;
             };
 
             sampler2D _Layer0;
@@ -51,7 +51,7 @@
             v2f vert (appdata v)
             {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
+				o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _Layer0);
                 return o;
             }
@@ -59,8 +59,9 @@
             fixed4 frag (v2f i) : SV_Target
             {
                 // sample the texture
-				fixed4 col = tex2D(_Layer6, i.uv);
+				fixed4 col = tex2D(_Layer1, i.uv);
 				
+				col.a = 1.0;
                 return col;
             }
             ENDCG
