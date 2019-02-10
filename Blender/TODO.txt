@@ -1,14 +1,20 @@
+[ ] Debug draw the voxel data
+    This is important in order to debug import/export + any potential tree structure errors
+
+[ ] Create psuedo code for extracting voxel lcoation from shader pixel position
+
+========================================
+
+[x] Draw up a memory layout diagram, needs to be clear how the data is to be read from the textures
+
 [x] list vertices on selected mesh
 
 [x] Produce some form of voxel data
     [x] Voxel Color
     [x] Voxel Normal
 
-[ ] Debug draw the voxel data
-    This is important in order to debug import/export + any potential tree structure errors
+[x] Convert voxel data to tree structure
 
-[ ] Convert voxel data to tree structure
+[x] Save voxel data to some shader-readable format, e.g texture data
 
-[ ] Save voxel data to some shader-readable format, e.g texture data
-
-[ ] Decide on shader env/program, best candidate is probably shader monkey or Unity
+[x] Decide on shader env/program, best candidate is probably shader monkey or Unity
