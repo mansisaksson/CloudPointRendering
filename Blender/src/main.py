@@ -36,7 +36,8 @@ def generate_search_tree(mesh: bpy.types.Object):
     ])
 
     children_per_node = 2 ** 3  # needs to be ^3 TODO: need to make sure the voxel size fits with the child count
-    voxel_size = 0.05
+    #voxel_size = 0.015625
+    voxel_size = 0.03125  # 1 / 32
 
     def generate_bottom_layer():
         box = boundingBox.create_box(mesh.bound_box)
@@ -146,13 +147,12 @@ def main():
         print("Found Selected Object: " + obj.name)
         if obj.type == 'MESH':
             layers = generate_search_tree(obj)
-            # print(layers)
-            return
 
-            path = dir + "\\export\\"
-            os.makedirs(path, exist_ok=True)
-            with open(path + "export_data.txt", "w") as file:
-                file.write(str(voxel_data))
+            for i, layer in enumerate(layers):
+                path = dir + "\\export\\"
+                os.makedirs(path, exist_ok=True)
+                with open(path + "layer" + str(i) + ".txt", "wb") as file:
+                    file.write(layer)
 
             # img = bpy.data.images[0]  # type: bpy.types.Image
             # for pixel in img.pixels:
