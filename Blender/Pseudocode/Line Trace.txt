@@ -1,0 +1,85 @@
+
+struct Box
+{
+    Origin
+    Extent
+}
+
+struct Line
+{
+    Start
+    Direction
+}
+
+struct TraceResult
+{
+    bHit
+    HitLocation
+}
+
+TraceResult trace_box(Line, Box)
+{
+    // Line trace box
+}
+
+color trace_color_recursive(Box, Line, layerIndex, rootBoxDimensions)
+{
+    // Generate child boxes
+    Box[8] splitBox(Box)
+    {
+        Boxes = Box[4]
+        Boxes[0] = bottom_right_box
+        Boxes[1] = ...
+        return Boxes
+    }
+    Box[8] ChildBoxes = SplitBox(Box)
+
+    // Line trace all boxes
+    struct BoxeTraceResult
+    {
+        BoxIndex
+        bHit
+        HitLocation
+    }
+    BoxeTraceResult[8] BoxTraceResult
+    for i, box in ChildBoxes {
+        traceResult = trace_box(box)
+        BoxTraceResult[i].BoxIndex = i
+        BoxTraceResult[i].bHit = traceResult.bHit
+        BoxTraceResult[i].HitLocation = traceResult.HitLocation
+    }
+
+    boxTraceResult.SortByHitLocation()
+
+
+    // Recursive search children for color data
+    for each boxTraceResult in BoxTraceResult {
+        if (boxTraceResult.bHit) {
+            child_color = trace_color_recursive(ChildBoxes[boxTraceResult.BoxIndex], Line, layerIndex + 1, rootBoxDimensions)
+            if (IsValidColor(child_color))
+                return child_color;
+        }
+    }
+
+
+    // Sample texture
+    Vector boxDimentions = Box.Extent * 2;
+    uint3 voxelIndex = int3(
+        round((IN.localPos.x + (boxDimentions.x / 2.0)) / rootBoxDimensions.x),
+        round((IN.localPos.y + (boxDimentions.y / 2.0)) / rootBoxDimensions.y),
+        round((IN.localPos.z + (boxDimentions.z / 2.0)) / rootBoxDimensions.z));
+
+    texture = get_texture(layerIndex)
+    uv = convertToUVLocation(voxelIndex, texture.size)
+    return tex2D(texture, uvs);
+}
+
+
+void main()
+{
+    BoxExtent = (2, 2, 2)
+    Box RootBox = { (0, 0, 0), BoxExtent) }
+
+    Line ray = { CameraPixelPosition, normalize(RenderedPixelPosition - CameraPixelPosition) }
+    return trace_color_recursive(RootBox, ray, 0, BoxExtent)
+}

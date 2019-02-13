@@ -29,6 +29,29 @@ Shader "Unlit/MyUnlitShader"
 
             #include "UnityCG.cginc"
 
+			sampler2D _Layer1;
+			sampler2D _Layer2;
+			sampler2D _Layer3;
+			sampler2D _Layer4;
+			sampler2D _Layer5;
+			sampler2D _Layer6;
+			sampler2D _Layer7;
+			sampler2D _Layer8;
+
+			float4 _Layer1_ST;
+
+			static sampler2D Layers[8] = 
+			{
+				_Layer1,
+				_Layer2,
+				_Layer3,
+				_Layer4,
+				_Layer5,
+				_Layer6,
+				_Layer7,
+				_Layer8
+			};
+
             struct appdata
             {
 				float4 vertex : POSITION0;
@@ -45,10 +68,6 @@ Shader "Unlit/MyUnlitShader"
 				float3 localPos : POSITION1;
 			};
 
-            sampler2D _Layer1;
-
-			float4 _Layer1_ST;
-
 			v2f vert(appdata IN)
 			{
 				v2f OUT;
@@ -61,35 +80,126 @@ Shader "Unlit/MyUnlitShader"
 				return OUT;
 			}
 
-			float2 convertToUVLocation(int3 voxelIndex, int2 textureSize)
+			struct Box
 			{
-				//uint voxelMemorySize = (4 * 4); // 4 bytes per component (one float) and [r, g, b, a]
-				uint oneDimentionalLocation = (voxelIndex.x + voxelIndex.y + voxelIndex.z);
-				uint rowCount = textureSize.x;
+				float3 Origin;
+				float3 Extent;
+			};
 
-				uint yLocation = ceil(oneDimentionalLocation / rowCount);
-				uint xLocation = ceil(oneDimentionalLocation % rowCount);
+			struct Line
+			{
+				float3 Origin;
+				float3 Direction;
+			};
 
-				return float2(float(xLocation) / textureSize.x, float(yLocation) / textureSize.y);
+			fixed4 TraceColorRecursive(Box box, Line ray, int layerIndex, float3 rootBoxDimensions)
+			{
+				struct Local
+				{
+					static bool LineTraceBox(Line ray, Box box, inout float3 hitLocation)
+					{
+						return false;
+					}
+
+					static void SplitBoxes(Box box, inout Box boxes[8])
+					{
+						int nrOfBoxes = 8;
+						for (int i = 0; i < nrOfBoxes; i++)
+						{
+							Box childBox = {
+								float3(0, 0, 0), 
+								float3(0, 0, 0) 
+							};
+							boxes[i] = childBox;
+						}
+					}
+					
+					static float2 convertToUVLocation(int3 voxelIndex, int2 textureSize)
+					{
+						uint oneDimentionalLocation = (voxelIndex.x + voxelIndex.y + voxelIndex.z);
+						uint rowCount = textureSize.x;
+
+						uint yLocation = ceil(oneDimentionalLocation / rowCount);
+						uint xLocation = ceil(oneDimentionalLocation % rowCount);
+
+						return float2(float(xLocation) / textureSize.x, float(yLocation) / textureSize.y);
+					}
+				};
+
+				Box ChildBoxes[8];
+				Local::SplitBoxes(box, ChildBoxes);
+
+				// Line trace all boxes
+				struct BoxTraceResult
+				{
+					int BoxIndex;
+					bool bHit;
+					float3 HitLocation;
+				};
+
+				BoxTraceResult boxTraceResults[8];
+				for (int i = 0; i < 8; i++) {
+					float3 hitLocation = float3(0, 0, 0);
+					bool bHit = Local::LineTraceBox(ray, ChildBoxes[i], hitLocation);
+					BoxTraceResult traceResult = { i, bHit,	hitLocation	};
+					boxTraceResults[i] = traceResult;
+				}
+
+				//boxTraceResult.SortByHitLocation()
+
+				// Recursive search children for color data
+				for (i = 0; i < 8; i++) {
+					if (boxTraceResults[i].bHit) {
+						fixed4 childColor = TraceColorRecursive(
+							ChildBoxes[boxTraceResults[i].BoxIndex], 
+							ray, 
+							layerIndex + 1, 
+							rootBoxDimensions
+						);
+						if (ceil(childColor.a) == 0) {
+							return childColor;
+						}
+					}
+				}
+
+				// Sample texture
+				/*float3 boxDimentions = Box.Extent * 2;
+				uint3 voxelIndex = int3(
+					round((IN.localPos.x + (boxDimentions.x / 2.0)) / rootBoxDimensions.x),
+					round((IN.localPos.y + (boxDimentions.y / 2.0)) / rootBoxDimensions.y),
+					round((IN.localPos.z + (boxDimentions.z / 2.0)) / rootBoxDimensions.z));
+
+				texture = get_texture(layerIndex)
+				uv = convertToUVLocation(voxelIndex, texture.size)
+				return tex2D(texture, uvs);*/
+
+				return float4(0, 0, 0, 1);
 			}
 
             fixed4 frag (v2f IN) : COLOR
             {
-				float3 cubeDimentions = float3(2.0, 2.0, 2.0);
-				uint3 voxelIndex = int3(
-					round((IN.localPos.x + (cubeDimentions.x / 2.0)) / cubeDimentions.x),
-					round((IN.localPos.y + (cubeDimentions.y / 2.0)) / cubeDimentions.y),
-					round((IN.localPos.z + (cubeDimentions.z / 2.0)) / cubeDimentions.z));
+				float3 BoxExtent = float3(1.0, 1.0, 1.0);
+				Box RootBox = { float3(0, 0, 0), BoxExtent };
+				Line ray = { IN.screenpos, (IN.screenpos - IN.localPos) };
 
-				float2 uvs = convertToUVLocation(voxelIndex, int2(3, 3));
-				fixed4 col = tex2D(_Layer1, uvs);
-				/*fixed4 col;
-				col.r = voxelIndex.x;
-				col.g = voxelIndex.y;
-				col.b = voxelIndex.z;*/
-				
-				col.a = 1.0;
-                return col;
+				float4 color = TraceColorRecursive(RootBox, ray, 0, BoxExtent);
+				//float3 cubeDimentions = float3(2.0, 2.0, 2.0);
+				//uint3 voxelIndex = int3(
+				//	round((IN.localPos.x + (cubeDimentions.x / 2.0)) / cubeDimentions.x),
+				//	round((IN.localPos.y + (cubeDimentions.y / 2.0)) / cubeDimentions.y),
+				//	round((IN.localPos.z + (cubeDimentions.z / 2.0)) / cubeDimentions.z));
+
+				//float2 uvs = convertToUVLocation(voxelIndex, int2(3, 3));
+				//fixed4 col = tex2D(_Layer1, uvs);
+				///*fixed4 col;
+				//col.r = voxelIndex.x;
+				//col.g = voxelIndex.y;
+				//col.b = voxelIndex.z;*/
+				//
+				//col.a = 1.0;
+				//return col;
+
+				return float4(0, 0, 0, 1);
             }
             ENDCG
         }
