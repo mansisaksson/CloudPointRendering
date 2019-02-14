@@ -2,9 +2,9 @@
 
 Shader "Unlit/MyUnlitShader"
 {
-    Properties
-    {
-        _Layer0("_Layer0", 2D) = "white" {}
+	Properties
+	{
+		_Layer0("_Layer0", 2D) = "white" {}
 		_Layer1("_Layer1", 2D) = "white" {}
 		_Layer2("_Layer2", 2D) = "white" {}
 		_Layer3("_Layer3", 2D) = "white" {}
@@ -12,7 +12,7 @@ Shader "Unlit/MyUnlitShader"
 		_Layer5("_Layer5", 2D) = "white" {}
 		_Layer6("_Layer6", 2D) = "white" {}
 	}
-	SubShader
+		SubShader
 	{
 		Tags { "Queue" = "Transparent" "RenderType" = "Transparent" }
 		LOD 100
@@ -20,14 +20,14 @@ Shader "Unlit/MyUnlitShader"
 		ZWrite Off
 		Blend SrcAlpha OneMinusSrcAlpha
 
-        Pass
-        {
-            CGPROGRAM
+		Pass
+		{
+			CGPROGRAM
 
-            #pragma vertex vert
-            #pragma fragment frag
+			#pragma vertex vert
+			#pragma fragment frag
 
-            #include "UnityCG.cginc"
+			#include "UnityCG.cginc"
 
 			sampler2D _Layer1;
 			sampler2D _Layer2;
@@ -40,7 +40,7 @@ Shader "Unlit/MyUnlitShader"
 
 			float4 _Layer1_ST;
 
-			static sampler2D Layers[8] = 
+			static sampler2D Layers[8] =
 			{
 				_Layer1,
 				_Layer2,
@@ -52,15 +52,15 @@ Shader "Unlit/MyUnlitShader"
 				_Layer8
 			};
 
-            struct appdata
-            {
+			struct appdata
+			{
 				float4 vertex : POSITION0;
 				float4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
-            };
+			};
 
-            struct v2f
-            {
+			struct v2f
+			{
 				float4 vertex : POSITION0;
 				float4 color : COLOR;
 				float2 texcoord : TEXCOORD0;
@@ -82,35 +82,78 @@ Shader "Unlit/MyUnlitShader"
 
 			struct Box
 			{
-				float3 Origin;
-				float3 Extent;
+				float3 P1;
+				float3 P2;
 			};
 
 			struct Line
 			{
-				float3 Origin;
-				float3 Direction;
+				float3 P1;
+				float3 P2;
 			};
 
 			fixed4 TraceColorRecursive(Box box, Line ray, int layerIndex, float3 rootBoxDimensions)
 			{
+				struct Math
+				{
+					static int GetIntersection(float fDst1, float fDst2, float3 P1, float3 P2, inout float3 Hit)
+					{
+						if ((fDst1 * fDst2) >= 0.0f) return 0;
+						if (fDst1 == fDst2) return 0;
+						Hit = P1 + (P2 - P1) * (-fDst1 / (fDst2 - fDst1));
+						return 1;
+					}
+
+					static int InBox(float3 Hit, float3 B1, float3 B2, const int Axis)
+					{
+						if (Axis == 1 && Hit.z > B1.z && Hit.z < B2.z && Hit.y > B1.y && Hit.y < B2.y) return 1;
+						if (Axis == 2 && Hit.z > B1.z && Hit.z < B2.z && Hit.x > B1.x && Hit.x < B2.x) return 1;
+						if (Axis == 3 && Hit.x > B1.x && Hit.x < B2.x && Hit.y > B1.y && Hit.y < B2.y) return 1;
+						return 0;
+					}
+
+					// returns true if line (L1, L2) intersects with the box (B1, B2)
+					// returns intersection point in Hit
+					static bool CheckLineBox(float3 B1, float3 B2, float3 L1, float3 L2, inout float3 Hit)
+					{
+						if (L2.x < B1.x && L1.x < B1.x) return false;
+						if (L2.x > B2.x && L1.x > B2.x) return false;
+						if (L2.y < B1.y && L1.y < B1.y) return false;
+						if (L2.y > B2.y && L1.y > B2.y) return false;
+						if (L2.z < B1.z && L1.z < B1.z) return false;
+						if (L2.z > B2.z && L1.z > B2.z) return false;
+						if (L1.x > B1.x && L1.x < B2.x &&
+							L1.y > B1.y && L1.y < B2.y &&
+							L1.z > B1.z && L1.z < B2.z)
+						{
+							Hit = L1;
+							return true;
+						}
+						if ((GetIntersection(L1.x - B1.x, L2.x - B1.x, L1, L2, Hit) && InBox(Hit, B1, B2, 1))
+							|| (GetIntersection(L1.y - B1.y, L2.y - B1.y, L1, L2, Hit) && InBox(Hit, B1, B2, 2))
+							|| (GetIntersection(L1.z - B1.z, L2.z - B1.z, L1, L2, Hit) && InBox(Hit, B1, B2, 3))
+							|| (GetIntersection(L1.x - B2.x, L2.x - B2.x, L1, L2, Hit) && InBox(Hit, B1, B2, 1))
+							|| (GetIntersection(L1.y - B2.y, L2.y - B2.y, L1, L2, Hit) && InBox(Hit, B1, B2, 2))
+							|| (GetIntersection(L1.z - B2.z, L2.z - B2.z, L1, L2, Hit) && InBox(Hit, B1, B2, 3)))
+							return true;
+
+						return false;
+					}
+				};
+
 				struct Local
 				{
 					static bool LineTraceBox(Line ray, Box box, inout float3 hitLocation)
 					{
-						return false;
+						return Math::CheckLineBox(box.P1, box.P2, ray.P1, ray.P2, hitLocation);
 					}
 
 					static void SplitBoxes(Box box, inout Box boxes[8])
 					{
 						uint nrOfBoxes = 8;
 						uint childPerSide = 2;//round(pow(nrOfBoxes, (1. / 3)));
-						float3 bottomRight = box.Origin - box.Extent;
-						float3 newBoxExtent = float3(
-							box.Extent.x / childPerSide,
-							box.Extent.y / childPerSide,
-							box.Extent.z / childPerSide
-							);
+						float3 bottomRight = box.P2;
+						float3 newBoxExtent = (box.P2 - box.P1) / 2.0;
 
 						for (uint i = 0; i < nrOfBoxes; i++)
 						{
@@ -145,52 +188,80 @@ Shader "Unlit/MyUnlitShader"
 					}
 				};
 
-				Box ChildBoxes[8];
-				Local::SplitBoxes(box, ChildBoxes);
-
-				// Line trace all boxes
-				struct BoxTraceResult
+				struct BoxStack
 				{
-					int BoxIndex;
-					bool bHit;
-					float3 HitLocation;
+					Box BoxStack[800];
+					int stackIndex;
+
+					void Push(Box box)
+					{
+
+					}
+
+					Box Pop()
+					{
+						Box box = { float3(0, 0, 0), float3(0, 0, 0) };
+						return box;
+					}
+
+					bool IsEmpty()
+					{
+						return stackIndex == -1;
+					}
 				};
 
-				BoxTraceResult boxTraceResults[8];
-				for (int i = 0; i < 8; i++) {
-					float3 hitLocation = float3(0, 0, 0);
-					bool bHit = Local::LineTraceBox(ray, ChildBoxes[i], hitLocation);
-					BoxTraceResult traceResult = { i, bHit,	hitLocation	};
-					boxTraceResults[i] = traceResult;
-				}
+				BoxStack boxStack;
+				boxStack.Push(box);
 
-				//boxTraceResult.SortByHitLocation()
+				fixed4 color;
+				while (!boxStack.IsEmpty())
+				{
+					// Pop a vertex from stack and print it 
+					box = boxStack.Pop();
 
-				// Recursive search children for color data
-				for (i = 0; i < 8; i++) {
-					if (boxTraceResults[i].bHit) {
-						fixed4 childColor = TraceColorRecursive(
-							ChildBoxes[boxTraceResults[i].BoxIndex], 
-							ray, 
-							layerIndex + 1, 
-							rootBoxDimensions
-						);
-						if (ceil(childColor.a) == 0) {
-							return childColor;
+					// Get box color
+					// if (has no color)
+					//		continue
+
+					// Sample texture
+					/*float3 boxDimentions = Box.Extent * 2;
+					uint3 voxelIndex = int3(
+						round((IN.localPos.x + (boxDimentions.x / 2.0)) / rootBoxDimensions.x),
+						round((IN.localPos.y + (boxDimentions.y / 2.0)) / rootBoxDimensions.y),
+						round((IN.localPos.z + (boxDimentions.z / 2.0)) / rootBoxDimensions.z));
+
+					texture = get_texture(layerIndex)
+					uv = convertToUVLocation(voxelIndex, texture.size)
+					return tex2D(texture, uvs);*/
+
+					Box ChildBoxes[8];
+					Local::SplitBoxes(box, ChildBoxes);
+
+					// Line trace all boxes
+					struct BoxTraceResult
+					{
+						int BoxIndex;
+						bool bHit;
+						float3 HitLocation;
+					};
+
+					BoxTraceResult boxTraceResults[8];
+					for (int i = 0; i < 8; i++) {
+						float3 hitLocation = float3(0, 0, 0);
+						bool bHit = Local::LineTraceBox(ray, ChildBoxes[i], hitLocation);
+						BoxTraceResult traceResult = { i, bHit,	hitLocation };
+						boxTraceResults[i] = traceResult;
+					}
+
+					//boxTraceResult.ReverseSortByHitLocation()
+
+					// Depth first search children for color data
+					for (i = 0; i < 8; i++) {
+						if (boxTraceResults[i].bHit) {
+							boxStack.Push(ChildBoxes[boxTraceResults[i].BoxIndex]);
 						}
 					}
 				}
-
-				// Sample texture
-				/*float3 boxDimentions = Box.Extent * 2;
-				uint3 voxelIndex = int3(
-					round((IN.localPos.x + (boxDimentions.x / 2.0)) / rootBoxDimensions.x),
-					round((IN.localPos.y + (boxDimentions.y / 2.0)) / rootBoxDimensions.y),
-					round((IN.localPos.z + (boxDimentions.z / 2.0)) / rootBoxDimensions.z));
-
-				texture = get_texture(layerIndex)
-				uv = convertToUVLocation(voxelIndex, texture.size)
-				return tex2D(texture, uvs);*/
 
 				return float4(0, 0, 0, 1);
 			}
@@ -198,10 +269,13 @@ Shader "Unlit/MyUnlitShader"
             fixed4 frag (v2f IN) : COLOR
             {
 				float3 BoxExtent = float3(1.0, 1.0, 1.0);
-				Box RootBox = { float3(0, 0, 0), BoxExtent };
-				Line ray = { IN.screenpos, (IN.screenpos - IN.localPos) };
+				Box RootBox = { -BoxExtent, BoxExtent };
+				float3 rayDir = (IN.screenpos - IN.localPos);
+				Line ray = { IN.screenpos, IN.screenpos + rayDir * 200 };
 
 				float4 color = TraceColorRecursive(RootBox, ray, 0, BoxExtent);
+				
+				
 				//float3 cubeDimentions = float3(2.0, 2.0, 2.0);
 				//uint3 voxelIndex = int3(
 				//	round((IN.localPos.x + (cubeDimentions.x / 2.0)) / cubeDimentions.x),
@@ -218,7 +292,7 @@ Shader "Unlit/MyUnlitShader"
 				//col.a = 1.0;
 				//return col;
 
-				return float4(0, 0, 0, 1);
+				return color;
             }
             ENDCG
         }
