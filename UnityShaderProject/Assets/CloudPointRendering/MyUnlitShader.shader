@@ -103,12 +103,31 @@ Shader "Unlit/MyUnlitShader"
 
 					static void SplitBoxes(Box box, inout Box boxes[8])
 					{
-						int nrOfBoxes = 8;
-						for (int i = 0; i < nrOfBoxes; i++)
+						uint nrOfBoxes = 8;
+						uint childPerSide = 2;//round(pow(nrOfBoxes, (1. / 3)));
+						float3 bottomRight = box.Origin - box.Extent;
+						float3 newBoxExtent = float3(
+							box.Extent.x / childPerSide,
+							box.Extent.y / childPerSide,
+							box.Extent.z / childPerSide
+							);
+
+						for (uint i = 0; i < nrOfBoxes; i++)
 						{
+							uint3 Indices = uint3(
+								ceil(i % childPerSide),
+								ceil(i / childPerSide),
+								ceil((i / childPerSide) % childPerSide)
+								); // probs not correct
+
+							float3 newOrigin = float3(
+								bottomRight.x + (Indices.x * newBoxExtent.x) + (newBoxExtent.x / 2.0),
+								bottomRight.y + (Indices.y * newBoxExtent.y) + (newBoxExtent.y / 2.0),
+								bottomRight.z + (Indices.z * newBoxExtent.z) + (newBoxExtent.z / 2.0)
+								);
 							Box childBox = {
-								float3(0, 0, 0), 
-								float3(0, 0, 0) 
+								newOrigin,
+								newBoxExtent
 							};
 							boxes[i] = childBox;
 						}
