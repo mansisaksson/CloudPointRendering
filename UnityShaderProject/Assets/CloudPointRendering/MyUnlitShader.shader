@@ -179,7 +179,7 @@ Shader "Unlit/MyUnlitShader"
 
 			struct Helpers
 			{
-				static void SplitBoxes(Box parentBox, float3 rootBoxExtent, inout Box boxes[8])
+				static void SplitBoxes(Box parentBox, inout Box boxes[8])
 				{
 					float3 newBoxExtent = parentBox.Extent * 0.5;
 
@@ -226,7 +226,7 @@ Shader "Unlit/MyUnlitShader"
 
 				int i = 0;
 				int count = 0;
-				fixed4 color = fixed4(0, 0, 0, 1.0);
+				fixed4 color = fixed4(0, 0, 0, 0);
 				[loop] while (stackIndex != -1)
 				{
 					count++;
@@ -241,15 +241,17 @@ Shader "Unlit/MyUnlitShader"
 					// Sample color of current box
 					{
 						uint layerIndex = ceil((stackIndex + 1) / 8);
-						uint3 childrenPerSide = layerIndex * 2;
-						uint3 voxelIndex = int3(
-							round((currentBox.Origin.x + rootBoxExtent.x) / childrenPerSide.x),
-							round((currentBox.Origin.y + rootBoxExtent.y) / childrenPerSide.y),
-							round((currentBox.Origin.z + rootBoxExtent.z) / childrenPerSide.z));
+
+						float3 voxelLength = (box.Extent * 2.0);
+						float3 voxelLocation = (box.Origin - box.Extent) + rootBoxExtent; // + rootBoxExtent to offset to positive space
+						float3 rootBoxLength = (rootBoxExtent * 2.0);
+
+						// TODO: Something is not right here
+						int3 voxelIndex = ceil((rootBoxLength / voxelLength) * (voxelLocation / rootBoxLength));
 
 						fixed4 currentBoxColor = fixed4(0.0, 0.0, 0.0, 0.0);
 						float2 uv = float2(0, 0);
-						switch (layerIndex) // stackIndex == layer depth
+						switch (layerIndex)
 						{
 						case 0:
 							uv = Helpers::convertToUVLocation(voxelIndex, int2(_Layer1_TexelSize.z, _Layer1_TexelSize.w));
@@ -298,39 +300,39 @@ Shader "Unlit/MyUnlitShader"
 					}
 
 					Box ChildBoxes[8];
-					Helpers::SplitBoxes(currentBox, rootBoxExtent, ChildBoxes);
+					Helpers::SplitBoxes(currentBox, ChildBoxes);
 
-					//int index = 0;
-					//return boxTraceResults[index].bHit ? fixed4(abs(boxTraceResults[index].HitLocation), 1.0) : fixed4(0, 0, 0, 1);
-
-					//if (ceil((stackIndex + 1) / 8) == 2)
-					//	return Math::IsLineInBox(ChildBoxes[index], ray) ? fixed4(1, 1, 1, 1) : fixed4(0, 0, 0, 1);
+					/*int index = 0;
+					if (ceil((stackIndex + 1) / 8) == 0)
+						return Math::IsLineInBox(ChildBoxes[index], ray) ? color : fixed4(0, 0, 0, 1);*/
 
 					// Collect distances to boxes
 					float distances[8] = {
-						length(ray.L1 - ChildBoxes[0].Origin),
-						length(ray.L1 - ChildBoxes[1].Origin),
-						length(ray.L1 - ChildBoxes[2].Origin),
-						length(ray.L1 - ChildBoxes[3].Origin),
-						length(ray.L1 - ChildBoxes[4].Origin),
-						length(ray.L1 - ChildBoxes[5].Origin),
-						length(ray.L1 - ChildBoxes[6].Origin),
-						length(ray.L1 - ChildBoxes[7].Origin)
+						length(ChildBoxes[0].Origin - ray.L1),
+						length(ChildBoxes[1].Origin - ray.L1),
+						length(ChildBoxes[2].Origin - ray.L1),
+						length(ChildBoxes[3].Origin - ray.L1),
+						length(ChildBoxes[4].Origin - ray.L1),
+						length(ChildBoxes[5].Origin - ray.L1),
+						length(ChildBoxes[6].Origin - ray.L1),
+						length(ChildBoxes[7].Origin - ray.L1)
 					};
 
 					// Create sorted index list
 					int sortedIndices[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-					//for (i = 0; i < 8; i++) { // Easier to find biggest, therefore put in end of array
-					//	for (int j = i; j < 8; j++) {
-					//		int isBigger = step(distances[i], distances[j]);
+					for (i = 0; i < 7; i++) {
+						for (int j = i + 1; j < 8; j++) {
+							int isBigger = step(distances[i], distances[j]);
 
-					//		float tmp = distances[i];
-					//		distances[i] = (distances[i] * (1 - isBigger)) + (distances[j] * isBigger);
-					//		distances[j] = (distances[j] * (1 - isBigger)) + (tmp * isBigger);
+							float tmp = distances[i];
+							distances[i] = (distances[i] * (1 - isBigger)) + (distances[j] * isBigger);
+							distances[j] = (distances[j] * (1 - isBigger)) + (tmp * isBigger);
 
-					//		sortedIndices[i] = (sortedIndices[i] * (1 - isBigger)) + (j * isBigger);
-					//	}
-					//}
+							int iTmp = sortedIndices[i];
+							sortedIndices[i] = (sortedIndices[i] * (1 - isBigger)) + (sortedIndices[j] * isBigger);
+							sortedIndices[j] = (sortedIndices[j] * (1 - isBigger)) + (iTmp * isBigger);
+						}
+					}
 
 					// Trace against boxes
 					bool boxTraceResults[8];
@@ -359,6 +361,28 @@ Shader "Unlit/MyUnlitShader"
 				float3 rayDir = normalize(IN.localPos - IN.pixelLocalPos);
 
 				Line ray = { IN.pixelLocalPos, IN.pixelLocalPos + (rayDir * 100) };
+
+				Box childBoxes[8];
+				Helpers::SplitBoxes(RootBox, childBoxes);
+
+				for (int i = 0; i < 8; i++)
+				{
+					if (Math::IsLineInBox(childBoxes[i], ray))
+					{
+						static fixed4 colors[8] = {
+							fixed4(0, 0, 0, 1),
+							fixed4(1, 0, 0, 1),
+							fixed4(0, 1, 0, 1),
+							fixed4(0, 0, 1, 1),
+							fixed4(1, 0, 1, 1),
+							fixed4(0, 1, 1, 1),
+							fixed4(1, 1, 0, 1),
+							fixed4(1, 1, 1, 1)
+						};
+						return colors[i];
+					}
+				}
+				//return Helpers::convertToUVLocation()
 
 				fixed4 color = TraceColorRecursive(RootBox, ray, BoxExtent);
 				//return IN.pixelCameraPos;
