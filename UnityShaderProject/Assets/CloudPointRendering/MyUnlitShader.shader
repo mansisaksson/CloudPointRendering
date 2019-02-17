@@ -205,15 +205,18 @@ Shader "Unlit/MyUnlitShader"
 					}
 				}
 
-				static float2 convertToUVLocation(int3 voxelIndex, int2 textureSize)
+				static float2 convertToUVLocation(int3 voxelIndex, int3 dimensions, int2 textureSize)
 				{
-					uint oneDimentionalLocation = (voxelIndex.x + voxelIndex.y + voxelIndex.z);
-					uint rowCount = textureSize.x;
+					uint oneDimentionalLocation = 
+						voxelIndex.x + 
+						(voxelIndex.y * dimensions.x) +
+						(voxelIndex.z * (dimensions.x * dimensions.y));
 
-					uint yLocation = ceil(oneDimentionalLocation / rowCount);
-					uint xLocation = ceil(oneDimentionalLocation % rowCount);
+					int2 texLocation = int2(
+						oneDimentionalLocation % textureSize.x, 
+						ceil(oneDimentionalLocation / textureSize.x));
 
-					return float2(float(xLocation) / textureSize.x, float(yLocation) / textureSize.y);
+					return float2(texLocation) / float2(textureSize);
 				}
 			};
 
@@ -225,128 +228,121 @@ Shader "Unlit/MyUnlitShader"
 				boxStack[0] = box;
 
 				int i = 0;
-				int count = 0;
 				fixed4 color = fixed4(0, 0, 0, 0);
-				[loop] while (stackIndex != -1)
+				
+				[loop] for (int count = 0; count < 20 && stackIndex != -1; count++)
 				{
-					count++;
-					if (count > 20) {
-						return color;
-					}
-
-					// Pop a vertex from stack and print it 
 					Box currentBox = boxStack[stackIndex];
 					stackIndex--;
+					
+					fixed4 currentBoxColor = fixed4(0.0, 0.0, 0.0, 0.0);
+					int layerIndex = ceil((stackIndex + 1) / 8);
 
 					// Sample color of current box
 					{
-						uint layerIndex = ceil((stackIndex + 1) / 8);
-
 						float3 voxelLength = (box.Extent * 2.0);
-						float3 voxelLocation = (box.Origin - box.Extent) + rootBoxExtent; // + rootBoxExtent to offset to positive space
+						float3 voxelLocation = (box.Origin) + rootBoxExtent; // + rootBoxExtent to offset to positive space
 						float3 rootBoxLength = (rootBoxExtent * 2.0);
 
 						// TODO: Something is not right here
-						int3 voxelIndex = ceil((rootBoxLength / voxelLength) * (voxelLocation / rootBoxLength));
+						int3 voxelsPerSide = ceil(rootBoxLength / voxelLength);
+						int3 voxelIndex = round(float3(voxelsPerSide) * (rootBoxLength / voxelLocation));
 
-						fixed4 currentBoxColor = fixed4(0.0, 0.0, 0.0, 0.0);
+						// TODO: case is expensive, sample all children instead
 						float2 uv = float2(0, 0);
-						switch (layerIndex)
-						{
-						case 0:
-							uv = Helpers::convertToUVLocation(voxelIndex, int2(_Layer1_TexelSize.z, _Layer1_TexelSize.w));
+						if (layerIndex == 0) {
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer1_TexelSize.z, _Layer1_TexelSize.w));
 							currentBoxColor = tex2D(_Layer1, uv);
-							break;
-						case 1:
-							uv = Helpers::convertToUVLocation(voxelIndex, int2(_Layer2_TexelSize.z, _Layer2_TexelSize.w));
+							return fixed4(voxelIndex, 1);
+							//return fixed4(uv.x, uv.y, 0, 1);
+						}
+						else if (layerIndex == 1) {
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer2_TexelSize.z, _Layer2_TexelSize.w));
 							currentBoxColor = tex2D(_Layer2, uv);
-							break;
-						case 2:
-							uv = Helpers::convertToUVLocation(voxelIndex, int2(_Layer3_TexelSize.z, _Layer3_TexelSize.w));
+							return fixed4(voxelIndex, 1);
+							return fixed4(uv.y, uv.y, 0, 1);
+						}
+						else if (layerIndex == 2) {
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer3_TexelSize.z, _Layer3_TexelSize.w));
 							currentBoxColor = tex2D(_Layer3, uv);
-							break;
-						case 3:
-							uv = Helpers::convertToUVLocation(voxelIndex, int2(_Layer4_TexelSize.z, _Layer4_TexelSize.w));
+						}
+						else if (layerIndex == 3) {
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer4_TexelSize.z, _Layer4_TexelSize.w));
 							currentBoxColor = tex2D(_Layer4, uv);
-							break;
-						case 4:
-							uv = Helpers::convertToUVLocation(voxelIndex, int2(_Layer5_TexelSize.z, _Layer5_TexelSize.w));
+						}
+						else if (layerIndex == 4) {
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer5_TexelSize.z, _Layer5_TexelSize.w));
 							currentBoxColor = tex2D(_Layer5, uv);
-							break;
-						case 5:
-							uv = Helpers::convertToUVLocation(voxelIndex, int2(_Layer6_TexelSize.z, _Layer6_TexelSize.w));
+						}
+						else if (layerIndex == 5) {
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer6_TexelSize.z, _Layer6_TexelSize.w));
 							currentBoxColor = tex2D(_Layer6, uv);
-							break;
-						case 6:
-							uv = Helpers::convertToUVLocation(voxelIndex, int2(_Layer7_TexelSize.z, _Layer7_TexelSize.w));
+						}
+						else if (layerIndex == 6) {
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer7_TexelSize.z, _Layer7_TexelSize.w));
 							currentBoxColor = tex2D(_Layer7, uv);
-							break;
-						case 7:
-							uv = Helpers::convertToUVLocation(voxelIndex, int2(_Layer8_TexelSize.z, _Layer8_TexelSize.w));
+						}
+						else if (layerIndex == 7) {
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer8_TexelSize.z, _Layer8_TexelSize.w));
 							currentBoxColor = tex2D(_Layer8, uv);
-							break;
-						default:
-							break;
-						}
-
-						if (currentBoxColor.a != 0.0) {
-							color = currentBoxColor;
-						}
-
-						else if (currentBoxColor.a == 0.0) {
-							stackIndex--;
-							continue;
 						}
 					}
 
-					Box ChildBoxes[8];
-					Helpers::SplitBoxes(currentBox, ChildBoxes);
+					int bIsValidColor = step(0.001, currentBoxColor.a);
+					color = (color * (1 - bIsValidColor)) + (currentBoxColor * bIsValidColor);
+					stackIndex = stackIndex - (1 - bIsValidColor); // -1 if currentBoxColor.a == 0
 
-					/*int index = 0;
-					if (ceil((stackIndex + 1) / 8) == 0)
-						return Math::IsLineInBox(ChildBoxes[index], ray) ? color : fixed4(0, 0, 0, 1);*/
+					if (bIsValidColor)
+					{
+						color = currentBoxColor;
 
-					// Collect distances to boxes
-					float distances[8] = {
-						length(ChildBoxes[0].Origin - ray.L1),
-						length(ChildBoxes[1].Origin - ray.L1),
-						length(ChildBoxes[2].Origin - ray.L1),
-						length(ChildBoxes[3].Origin - ray.L1),
-						length(ChildBoxes[4].Origin - ray.L1),
-						length(ChildBoxes[5].Origin - ray.L1),
-						length(ChildBoxes[6].Origin - ray.L1),
-						length(ChildBoxes[7].Origin - ray.L1)
-					};
+						Box ChildBoxes[8];
+						Helpers::SplitBoxes(currentBox, ChildBoxes);
 
-					// Create sorted index list
-					int sortedIndices[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-					for (i = 0; i < 7; i++) {
-						for (int j = i + 1; j < 8; j++) {
-							int isBigger = step(distances[i], distances[j]);
+						/*int index = 7;
+						if (ceil((stackIndex + 1) / 8) == 1)
+							return Math::IsLineInBox(ChildBoxes[index], ray) ? color : fixed4(0, 0, 0, 1);*/
 
-							float tmp = distances[i];
-							distances[i] = (distances[i] * (1 - isBigger)) + (distances[j] * isBigger);
-							distances[j] = (distances[j] * (1 - isBigger)) + (tmp * isBigger);
+						// Collect distances to boxes
+						float distances[8] = {
+							length(ChildBoxes[0].Origin - ray.L1),
+							length(ChildBoxes[1].Origin - ray.L1),
+							length(ChildBoxes[2].Origin - ray.L1),
+							length(ChildBoxes[3].Origin - ray.L1),
+							length(ChildBoxes[4].Origin - ray.L1),
+							length(ChildBoxes[5].Origin - ray.L1),
+							length(ChildBoxes[6].Origin - ray.L1),
+							length(ChildBoxes[7].Origin - ray.L1)
+						};
 
-							int iTmp = sortedIndices[i];
-							sortedIndices[i] = (sortedIndices[i] * (1 - isBigger)) + (sortedIndices[j] * isBigger);
-							sortedIndices[j] = (sortedIndices[j] * (1 - isBigger)) + (iTmp * isBigger);
+						// Create sorted index list
+						int sortedIndices[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+						for (i = 0; i < 7; i++) {
+							for (int j = i + 1; j < 8; j++) {
+								int isBigger = step(distances[i], distances[j]);
+
+								float tmp = distances[i];
+								distances[i] = (distances[i] * (1 - isBigger)) + (distances[j] * isBigger);
+								distances[j] = (distances[j] * (1 - isBigger)) + (tmp * isBigger);
+
+								int iTmp = sortedIndices[i];
+								sortedIndices[i] = (sortedIndices[i] * (1 - isBigger)) + (sortedIndices[j] * isBigger);
+								sortedIndices[j] = (sortedIndices[j] * (1 - isBigger)) + (iTmp * isBigger);
+							}
 						}
-					}
 
-					// Trace against boxes
-					bool boxTraceResults[8];
-					for (i = 0; i < 8; i++) {
-						int sIndex = sortedIndices[i];
-						boxTraceResults[sIndex] = Math::IsLineInBox(ChildBoxes[sIndex], ray);
-					}
+						// Trace against boxes
+						bool boxTraceResults[8];
+						for (i = 0; i < 8; i++) {
+							int sIndex = sortedIndices[i];
+							boxTraceResults[sIndex] = Math::IsLineInBox(ChildBoxes[sIndex], ray);
+						}
 
-					// Push children to stack
-					for (i = 0; i < 8; i++) {
-						int sIndex = sortedIndices[i];
-						if (boxTraceResults[sIndex]) {
-							stackIndex++;
-							boxStack[stackIndex] = ChildBoxes[sIndex];
+						// Push children to stack
+						[loop] for (i = 0; i < 8; i++) {
+							int sIndex = sortedIndices[i];
+							boxStack[stackIndex + 1] = ChildBoxes[sIndex];
+							stackIndex = stackIndex + (1 * boxTraceResults[sIndex]); // Only increment stack if we hit the box
 						}
 					}
 				}
@@ -362,8 +358,10 @@ Shader "Unlit/MyUnlitShader"
 
 				Line ray = { IN.pixelLocalPos, IN.pixelLocalPos + (rayDir * 100) };
 
-				Box childBoxes[8];
+				/*Box childBoxes[8];
 				Helpers::SplitBoxes(RootBox, childBoxes);
+
+				//Helpers::SplitBoxes(childBoxes[4], childBoxes);
 
 				for (int i = 0; i < 8; i++)
 				{
@@ -381,7 +379,7 @@ Shader "Unlit/MyUnlitShader"
 						};
 						return colors[i];
 					}
-				}
+				}*/
 				//return Helpers::convertToUVLocation()
 
 				fixed4 color = TraceColorRecursive(RootBox, ray, BoxExtent);
