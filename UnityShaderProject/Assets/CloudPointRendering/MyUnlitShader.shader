@@ -220,55 +220,59 @@ Shader "Unlit/MyUnlitShader"
 				}
 			};
 
-			fixed4 TraceColorRecursive(Box box, Line ray, float3 rootBoxExtent)
+			fixed4 TraceColorRecursive(Box box, Line ray)
 			{
-				Box boxStack[8 * 8]; // 8 layers * 8 cubes per layer
-				uint stackIndex = 0;
-				
-				boxStack[0] = box;
-
+				// Setup constants
 				int i = 0;
 				fixed4 color = fixed4(0, 0, 0, 0);
+				float3 rootBoxExtent = box.Extent;
+				float3 rootBoxLength = (rootBoxExtent * 2.0);
+
+				// Setup stack
+				Box boxStack[100]; // TODO: How big should i make the stack?
+				uint stackIndex = 0;
+				boxStack[0] = box;
 				
-				[loop] for (int count = 0; count < 20 && stackIndex != -1; count++)
+				[loop] for (int count = 0; count < 50 && stackIndex != -1; count++)
 				{
 					Box currentBox = boxStack[stackIndex];
 					stackIndex--;
 					
 					fixed4 currentBoxColor = fixed4(0.0, 0.0, 0.0, 0.0);
-					int layerIndex = ceil((stackIndex + 1) / 8);
 
 					// Sample color of current box
 					{
-						float3 voxelLength = (box.Extent * 2.0);
-						float3 voxelLocation = (box.Origin) + rootBoxExtent; // + rootBoxExtent to offset to positive space
-						float3 rootBoxLength = (rootBoxExtent * 2.0);
+						float3 voxelLength = (currentBox.Extent * 2.0);
+						float3 voxelLocation = (currentBox.Origin) + rootBoxExtent; // + rootBoxExtent to offset to positive space
 
-						// TODO: Something is not right here
 						int3 voxelsPerSide = ceil(rootBoxLength / voxelLength);
-						int3 voxelIndex = round(float3(voxelsPerSide) * (rootBoxLength / voxelLocation));
+						int3 voxelIndex = round(float3(voxelsPerSide) * float3(rootBoxLength / voxelLocation));
+
+						int layerIndex = log2(round(rootBoxLength.x / voxelLength.x));
 
 						// TODO: case is expensive, sample all children instead
 						float2 uv = float2(0, 0);
 						if (layerIndex == 0) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer1_TexelSize.z, _Layer1_TexelSize.w));
 							currentBoxColor = tex2D(_Layer1, uv);
-							return fixed4(voxelIndex, 1);
-							//return fixed4(uv.x, uv.y, 0, 1);
 						}
 						else if (layerIndex == 1) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer2_TexelSize.z, _Layer2_TexelSize.w));
 							currentBoxColor = tex2D(_Layer2, uv);
-							return fixed4(voxelIndex, 1);
-							return fixed4(uv.y, uv.y, 0, 1);
+							//return currentBoxColor;
+							return fixed4(uv.x, uv.y, 0, 1);
 						}
 						else if (layerIndex == 2) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer3_TexelSize.z, _Layer3_TexelSize.w));
 							currentBoxColor = tex2D(_Layer3, uv);
+							//return currentBoxColor;
+							//return fixed4(uv.x, uv.y, 0, 1);
 						}
 						else if (layerIndex == 3) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer4_TexelSize.z, _Layer4_TexelSize.w));
 							currentBoxColor = tex2D(_Layer4, uv);
+							//return currentBoxColor;
+							//return fixed4(uv.x, uv.y, 0, 1);
 						}
 						else if (layerIndex == 4) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer5_TexelSize.z, _Layer5_TexelSize.w));
@@ -382,7 +386,7 @@ Shader "Unlit/MyUnlitShader"
 				}*/
 				//return Helpers::convertToUVLocation()
 
-				fixed4 color = TraceColorRecursive(RootBox, ray, BoxExtent);
+				fixed4 color = TraceColorRecursive(RootBox, ray);
 				//return IN.pixelCameraPos;
 				return color;
             }
