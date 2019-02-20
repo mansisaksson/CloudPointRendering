@@ -155,8 +155,8 @@ Shader "Unlit/MyUnlitShader"
 				static bool IsLineInBox(Box box, Line ray)
 				{
 					float3 boxExtent = box.Extent / 2;
-					float3 LB1 = box.Origin - ray.L1;
-					float3 LB2 = box.Origin - ray.L2;
+					float3 LB1 = ray.L1 - (box.Origin / 2);
+					float3 LB2 = ray.L2 - (box.Origin / 2);
 
 					// Get line midpoint and extent
 					float3 LMid = (LB1 + LB2) * 0.5f;
@@ -183,20 +183,20 @@ Shader "Unlit/MyUnlitShader"
 				{
 					float3 newBoxExtent = parentBox.Extent * 0.5;
 
-					static uint3 Indices[8] =
+					static float3 Indices[8] =
 					{
-						uint3(0, 0, 0),
-						uint3(1, 0, 0),
-						uint3(0, 0, 1),
-						uint3(1, 0, 1),
-						uint3(0, 1, 0),
-						uint3(1, 1, 0),
-						uint3(0, 1, 1),
-						uint3(1, 1, 1)
+						float3(-1, -1, -1),
+						float3(-1, -1,  1),
+						float3( 1, -1, -1),
+						float3( 1, -1,  1),
+						float3(-1,  1, -1),
+						float3(-1,  1,  1),
+						float3( 1,  1, -1),
+						float3( 1,  1,  1)
 					};
 					for (int i = 0; i < 8; i++)
 					{
-						float3 newOrigin = parentBox.Origin + (Indices[i] * newBoxExtent) - (newBoxExtent * 0.5);
+						float3 newOrigin = parentBox.Origin + (Indices[i] * newBoxExtent);
 						Box childBox = {
 							newOrigin,
 							newBoxExtent
@@ -207,14 +207,14 @@ Shader "Unlit/MyUnlitShader"
 
 				static float2 convertToUVLocation(int3 voxelIndex, int3 dimensions, int2 textureSize)
 				{
-					uint oneDimentionalLocation = 
+					int oneDimentionalLocation = 
 						voxelIndex.x + 
 						(voxelIndex.y * dimensions.x) +
 						(voxelIndex.z * (dimensions.x * dimensions.y));
 
 					int2 texLocation = int2(
 						oneDimentionalLocation % textureSize.x, 
-						ceil(oneDimentionalLocation / textureSize.x));
+						floor(float(oneDimentionalLocation) / float(textureSize.x)));
 
 					return float2(texLocation) / float2(textureSize);
 				}
@@ -233,21 +233,21 @@ Shader "Unlit/MyUnlitShader"
 				uint stackIndex = 0;
 				boxStack[0] = box;
 				
-				[loop] for (int count = 0; count < 20 && stackIndex != -1; count++)
+				[loop] for (int count = 0; count < 10 && stackIndex != -1; count++)
 				{
 					Box currentBox = boxStack[stackIndex];
 					stackIndex--;
 					
 					float3 voxelLength = (currentBox.Extent * 2.0);
-					float3 voxelLocation = (currentBox.Origin/* - currentBox.Extent*/) + rootBoxExtent; // + rootBoxExtent to offset to positive space
-
+					float3 voxelLocation = (currentBox.Origin - currentBox.Extent) + rootBoxExtent; // + rootBoxExtent to offset to positive space
+					
 					fixed4 currentBoxColor = fixed4(0.0, 0.0, 0.0, 0.0);
 					int layerIndex = log2(round(rootBoxLength.x / voxelLength.x));
 
 					// Sample color of current box
 					{
 						int3 voxelsPerSide = round(rootBoxLength / voxelLength);
-						int3 voxelIndex = float3(voxelsPerSide) * float3(voxelLocation / rootBoxLength);
+						int3 voxelIndex = round((voxelLocation / rootBoxLength) * voxelsPerSide);
 
 						// TODO: branch is expensive, sample all children instead
 						float2 uv = float2(0, 0);
@@ -262,9 +262,7 @@ Shader "Unlit/MyUnlitShader"
 						else if (layerIndex == 2) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer3_TexelSize.z, _Layer3_TexelSize.w));
 							currentBoxColor = tex2D(_Layer3, uv);
-							return fixed4(float3(voxelIndex) / 4, 1);
-							//return currentBoxColor;
-							//return fixed4(uv.x, uv.y, 0, 1);
+							return fixed4(0, uv.y, 0, 1);
 						}
 						else if (layerIndex == 3) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer4_TexelSize.z, _Layer4_TexelSize.w));
