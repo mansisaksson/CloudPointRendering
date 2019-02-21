@@ -168,7 +168,7 @@ def main():
                 data_block_size = layer.shape[0] * layer.shape[1] * layer.shape[2]
                 size = ceil(data_block_size ** (1 / 2.)), ceil(data_block_size ** (1 / 2.))
                 print("Saving data_block_size " + str(data_block_size) + " with image dimensions" + str(size))
-                image = bpy.data.images.new("MyImage", width=size[0], height=size[1])  # type: bpy.types.Image
+                image = bpy.data.images.new("MyImage", alpha=True, width=size[0], height=size[1])  # type: bpy.types.Image
 
                 pixel_pos = 0
                 pixels = [None] * size[0] * size[1]
@@ -178,7 +178,8 @@ def main():
                             r = layer[x, y, z]['color']['r']
                             g = layer[x, y, z]['color']['g']
                             b = layer[x, y, z]['color']['b']
-                            a = 1.0
+                            a = layer[x, y, z]['color']['a']
+
                             pixels[pixel_pos] = [r, g, b, a]
                             pixel_pos += 1
 
