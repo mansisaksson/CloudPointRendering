@@ -31,6 +31,7 @@ Shader "Unlit/MyUnlitShader"
 
 			#include "UnityCG.cginc"
 
+			sampler2D _Layer0;
 			sampler2D _Layer1;
 			sampler2D _Layer2;
 			sampler2D _Layer3;
@@ -38,9 +39,8 @@ Shader "Unlit/MyUnlitShader"
 			sampler2D _Layer5;
 			sampler2D _Layer6;
 			sampler2D _Layer7;
-			sampler2D _Layer8;
 
-			float4 _Layer1_ST;
+			float4 _Layer0_ST;
 
 			/*
 			 x contains 1.0/width
@@ -48,6 +48,7 @@ Shader "Unlit/MyUnlitShader"
 			 z contains width
 			 w contains height
 			*/
+			float4 _Layer0_TexelSize;
 			float4 _Layer1_TexelSize;
 			float4 _Layer2_TexelSize;
 			float4 _Layer3_TexelSize;
@@ -55,7 +56,6 @@ Shader "Unlit/MyUnlitShader"
 			float4 _Layer5_TexelSize;
 			float4 _Layer6_TexelSize;
 			float4 _Layer7_TexelSize;
-			float4 _Layer8_TexelSize;
 
 			struct appdata
 			{
@@ -252,38 +252,40 @@ Shader "Unlit/MyUnlitShader"
 						// TODO: branch is expensive, sample all children instead
 						float2 uv = float2(0, 0);
 						if (layerIndex == 0) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer1_TexelSize.z, _Layer1_TexelSize.w));
-							currentBoxColor = tex2D(_Layer1, uv);
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer0_TexelSize.z, _Layer0_TexelSize.w));
+							currentBoxColor = tex2D(_Layer0, uv);
 						}
 						else if (layerIndex == 1) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer2_TexelSize.z, _Layer2_TexelSize.w));
-							currentBoxColor = tex2D(_Layer2, uv);
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer1_TexelSize.z, _Layer1_TexelSize.w));
+							currentBoxColor = tex2D(_Layer1, uv);
+							return fixed4(uv.x, 0, 0, 1);
 						}
 						else if (layerIndex == 2) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer3_TexelSize.z, _Layer3_TexelSize.w));
-							currentBoxColor = tex2D(_Layer3, uv);
-							return fixed4(0, uv.y, 0, 1);
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer2_TexelSize.z, _Layer2_TexelSize.w));
+							currentBoxColor = tex2D(_Layer2, uv);
+							//return fixed4(uv.x, 0, 0, 1);
+							//return fixed4(float3(voxelIndex) / 3, 1);
 						}
 						else if (layerIndex == 3) {
+							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer3_TexelSize.z, _Layer3_TexelSize.w));
+							currentBoxColor = tex2D(_Layer3, uv);
+						}
+						else if (layerIndex == 4) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer4_TexelSize.z, _Layer4_TexelSize.w));
 							currentBoxColor = tex2D(_Layer4, uv);
 						}
-						else if (layerIndex == 4) {
+						else if (layerIndex == 5) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer5_TexelSize.z, _Layer5_TexelSize.w));
 							currentBoxColor = tex2D(_Layer5, uv);
 						}
-						else if (layerIndex == 5) {
+						else if (layerIndex == 6) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer6_TexelSize.z, _Layer6_TexelSize.w));
 							currentBoxColor = tex2D(_Layer6, uv);
 						}
-						else if (layerIndex == 6) {
+						/*else if (layerIndex == 7) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer7_TexelSize.z, _Layer7_TexelSize.w));
 							currentBoxColor = tex2D(_Layer7, uv);
-						}
-						else if (layerIndex == 7) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer8_TexelSize.z, _Layer8_TexelSize.w));
-							currentBoxColor = tex2D(_Layer8, uv);
-						}
+						}*/
 					}
 
 					int bIsValidColor = step(0.001, currentBoxColor.a);
