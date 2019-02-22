@@ -165,15 +165,26 @@ Shader "Unlit/MyUnlitShader"
 
 					// Use Separating Axis Test
 					// Separation vector from box center to line center is LMid, since the line is in box space
-					if (abs(LMid.x) > boxExtent.x + LExt.x) return false;
-					if (abs(LMid.y) > boxExtent.y + LExt.y) return false;
-					if (abs(LMid.z) > boxExtent.z + LExt.z) return false;
-					// Crossproducts of line and each axis
-					if (abs(LMid.y * L.z - LMid.z * L.y) > (boxExtent.y * LExt.z + boxExtent.z * LExt.y)) return false;
-					if (abs(LMid.x * L.z - LMid.z * L.x) > (boxExtent.x * LExt.z + boxExtent.z * LExt.x)) return false;
-					if (abs(LMid.x * L.y - LMid.y * L.x) > (boxExtent.x * LExt.y + boxExtent.y * LExt.x)) return false;
-					// No separating axis, the line intersects
-					return true;
+					return step(abs(LMid.x), boxExtent.x + LExt.x)
+						* step(abs(LMid.y), boxExtent.y + LExt.y)
+						* step(abs(LMid.z), boxExtent.z + LExt.z)
+						
+						// Crossproducts of line and each axis
+						* step(abs(LMid.y * L.z - LMid.z * L.y), (boxExtent.y * LExt.z + boxExtent.z * LExt.y))
+						* step(abs(LMid.x * L.z - LMid.z * L.x), (boxExtent.x * LExt.z + boxExtent.z * LExt.x))
+						* step(abs(LMid.x * L.y - LMid.y * L.x), (boxExtent.x * LExt.y + boxExtent.y * LExt.x));
+						
+					// Use Separating Axis Test
+					// Separation vector from box center to line center is LMid, since the line is in box space
+					//if (abs(LMid.x) > boxExtent.x + LExt.x) return false;
+					//if (abs(LMid.y) > boxExtent.y + LExt.y) return false;
+					//if (abs(LMid.z) > boxExtent.z + LExt.z) return false;
+					//// Crossproducts of line and each axis
+					//if (abs(LMid.y * L.z - LMid.z * L.y) > (boxExtent.y * LExt.z + boxExtent.z * LExt.y)) return false;
+					//if (abs(LMid.x * L.z - LMid.z * L.x) > (boxExtent.x * LExt.z + boxExtent.z * LExt.x)) return false;
+					//if (abs(LMid.x * L.y - LMid.y * L.x) > (boxExtent.x * LExt.y + boxExtent.y * LExt.x)) return false;
+					//// No separating axis, the line intersects
+					//return true;
 				}
 			};
 
@@ -315,9 +326,9 @@ Shader "Unlit/MyUnlitShader"
 						Box ChildBoxes[8];
 						Helpers::SplitBoxes(currentBox, ChildBoxes);
 
-						int index = 3;
+						/*int index = 3;
 						if (layerIndex == 0)
-							return Math::IsLineInBox(ChildBoxes[index], ray) ? fixed4(1, 1, 1, 1) : fixed4(0, 0, 0, 1);
+							return Math::IsLineInBox(ChildBoxes[index], ray) ? fixed4(1, 1, 1, 1) : fixed4(0, 0, 0, 1);*/
 
 						// Collect distances to boxes
 						float distances[8] = {
