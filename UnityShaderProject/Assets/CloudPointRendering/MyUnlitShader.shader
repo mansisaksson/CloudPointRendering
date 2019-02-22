@@ -14,7 +14,7 @@ Shader "Unlit/MyUnlitShader"
 		_Layer5("_Layer5", 2D) = "white" {}
 		_Layer6("_Layer6", 2D) = "white" {}
 	}
-		SubShader
+	SubShader
 	{
 		Tags { "Queue" = "Transparent" "RenderType" = "Transparent" }
 		LOD 100
@@ -152,7 +152,7 @@ Shader "Unlit/MyUnlitShader"
 					return false;
 				}
 
-				static bool IsLineInBox(Box box, Line ray)
+				static int IsLineInBox(Box box, Line ray)
 				{
 					float3 boxExtent = box.Extent / 2;
 					float3 LB1 = ray.L1 - (box.Origin / 2);
@@ -207,16 +207,32 @@ Shader "Unlit/MyUnlitShader"
 
 				static float2 convertToUVLocation(int3 voxelIndex, int3 dimensions, int2 textureSize)
 				{
+					//int3 test[8] = {
+					//	int3(0, 0, 0), // 0 + 0 + 0 = 0
+					//	int3(1, 0, 0), // 1 + 0 + 0 = 1
+					//	int3(0, 1, 0), // 0 + 2 + 0 = 2
+					//	int3(1, 1, 0), // 1 + 2 + 0 = 3
+
+					//	int3(0, 0, 1), // 0 + 0 + 4 = 4
+					//	int3(1, 0, 1), // 1 + 0 + 4 = 5
+					//	int3(0, 1, 1), // 0 + 2 + 4 = 6
+					//	int3(1, 1, 1)  // 1 + 2 + 4 = 7
+					//};
+					
+					// swap z and y axis
 					int oneDimentionalLocation = 
 						voxelIndex.x + 
-						(voxelIndex.y * dimensions.x) +
-						(voxelIndex.z * (dimensions.x * dimensions.y));
+						(voxelIndex.z * dimensions.x) +
+						(voxelIndex.y * dimensions.x * 2);
 
 					int2 texLocation = int2(
-						oneDimentionalLocation % textureSize.x, 
-						floor(float(oneDimentionalLocation) / float(textureSize.x)));
+						oneDimentionalLocation % (textureSize.x),
+						oneDimentionalLocation / (textureSize.x));
 
-					return float2(texLocation) / float2(textureSize);
+					//float xcord = float(texLocation.x) / float(textureSize.x - 1);
+					//float ycord = float(texLocation.y) / float(textureSize.x - 1);
+					//return float2(xcord, ycord);
+					return float2(texLocation) / float2(textureSize - int2(1, 1));
 				}
 			};
 
@@ -233,7 +249,7 @@ Shader "Unlit/MyUnlitShader"
 				uint stackIndex = 0;
 				boxStack[0] = box;
 				
-				[loop] for (int count = 0; count < 10 && stackIndex != -1; count++)
+				[loop] for (int count = 0; count < 20 && stackIndex != -1; count++)
 				{
 					Box currentBox = boxStack[stackIndex];
 					stackIndex--;
@@ -258,13 +274,13 @@ Shader "Unlit/MyUnlitShader"
 						else if (layerIndex == 1) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer1_TexelSize.z, _Layer1_TexelSize.w));
 							currentBoxColor = tex2D(_Layer1, uv);
-							return fixed4(uv.x, 0, 0, 1);
+							//return fixed4(float3(voxelIndex), 1);
+							//return fixed4(uv.x, 0, 0, 1);
+							//return fixed4(0, uv.y, 0, 1);
 						}
 						else if (layerIndex == 2) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer2_TexelSize.z, _Layer2_TexelSize.w));
 							currentBoxColor = tex2D(_Layer2, uv);
-							//return fixed4(uv.x, 0, 0, 1);
-							//return fixed4(float3(voxelIndex) / 3, 1);
 						}
 						else if (layerIndex == 3) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer3_TexelSize.z, _Layer3_TexelSize.w));
@@ -299,9 +315,9 @@ Shader "Unlit/MyUnlitShader"
 						Box ChildBoxes[8];
 						Helpers::SplitBoxes(currentBox, ChildBoxes);
 
-						/*int index = 3;
+						int index = 3;
 						if (layerIndex == 0)
-							return Math::IsLineInBox(ChildBoxes[index], ray) ? fixed4(1, 1, 1, 1) : fixed4(0, 0, 0, 1);*/
+							return Math::IsLineInBox(ChildBoxes[index], ray) ? fixed4(1, 1, 1, 1) : fixed4(0, 0, 0, 1);
 
 						// Collect distances to boxes
 						float distances[8] = {
@@ -332,14 +348,14 @@ Shader "Unlit/MyUnlitShader"
 						}
 
 						// Trace against boxes
-						bool boxTraceResults[8];
+						int boxTraceResults[8];
 						for (i = 0; i < 8; i++) {
 							int sIndex = sortedIndices[i];
 							boxTraceResults[sIndex] = Math::IsLineInBox(ChildBoxes[sIndex], ray);
 						}
 
 						// Push children to stack
-						[loop] for (i = 0; i < 8; i++) {
+						for (i = 0; i < 8; i++) {
 							int sIndex = sortedIndices[i];
 							boxStack[stackIndex + 1] = ChildBoxes[sIndex];
 							stackIndex = stackIndex + (1 * boxTraceResults[sIndex]); // Only increment stack if we hit the box
