@@ -4,27 +4,28 @@ from typing import List, Set, Dict, Tuple, Optional
 
 class BoundingBox:
     def __init__(self):
-        self.min = (0.0, 0.0, 0.0)  # type: Vector
-        self.max = (0.0, 0.0, 0.0)  # type: Vector
-        self.size = (0.0, 0.0, 0.0)  # type: Vector
+        self.origin = (0.0, 0.0, 0.0)  # type: Vector
+        self.extent = (0.0, 0.0, 0.0)  # type: Vector
 
-    def __init__(self, min: Vector, max: Vector, size: Vector):
-        self.min = min  # type: Vector
-        self.max = max  # type: Vector
-        self.size = size  # type: Vector
+    def __init__(self, origin: Vector, extent: Vector):
+        self.origin = origin  # type: Vector
+        self.extent = extent  # type: Vector
 
 
-def create_box(location: List[Tuple[float, float, float]]) -> BoundingBox:
+def create_box(locations: List[Tuple[float, float, float]]) -> BoundingBox:
     loc_min = Vector((0, 0, 0))
     loc_max = Vector((0, 0, 0))
-    for loc in location:
-        # print(loc[2])
-        if loc[0] < loc_min[0] or loc[1] < loc_min[1] or loc[2] > loc_min[2]:
+    aggr_origin = Vector((0, 0, 0))
+    for loc in locations:
+        aggr_origin += Vector(loc)
+        if loc[0] < loc_min.x or loc[1] < loc_min.y or loc[2] < loc_min.z:
             loc_min = Vector(loc)
-        elif loc[0] > loc_min[0] or loc[1] > loc_min[1] or loc[2] < loc_min[2]:
-            loc_max = loc
+        elif loc[0] > loc_max.x or loc[1] > loc_max.y or loc[2] > loc_max.z:
+            loc_max = Vector(loc)
 
-    size = Vector((loc_max[0] - loc_min[0], loc_max[1] - loc_min[1], loc_min[2] - loc_max[2]))
-    box = BoundingBox(loc_min, loc_max, size)
-    return box
+    extent = Vector((loc_max.x - loc_min.x, loc_max.y - loc_min.y, loc_max.z - loc_min.z))
+    extent = Vector((abs(extent.x / 2.0), abs(extent.y / 2.0), abs(extent.z / 2.0)))
+    origin = Vector((aggr_origin.x / 4.0, aggr_origin.y / 4.0, aggr_origin.z / 4.0))
+
+    return BoundingBox(origin, extent)
 

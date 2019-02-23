@@ -4,7 +4,7 @@ import os
 import numpy as np
 from mathutils import Vector
 from typing import List, Tuple
-from math import ceil
+from math import ceil, log
 
 # change import path to path of blend-file
 dir = os.path.dirname(bpy.data.filepath)
@@ -55,13 +55,14 @@ def generate_search_tree(mesh: bpy.types.Object):
 
     def generate_bottom_layer():
         box = boundingBox.create_box(mesh.bound_box)
-
+        print("Box Bounds: " + str(box.origin) + ", " + str(box.extent))
         nr_of_voxels = children_per_node ** nr_of_voxel_layers
-        voxel_size = (box.size.x / nr_of_voxels)  # TODO: using x component as I assume this is a cube
+        nr_of_voxels_per_side = round(nr_of_voxels ** (1. / 3))
+        voxel_size = ((box.extent.x * 2) / nr_of_voxels_per_side)  # TODO: using x component as I assume this is a cube
 
-        grid_dimensions = (round(nr_of_voxels ** (1. / 3)),
-                           round(nr_of_voxels ** (1. / 3)),
-                           round(nr_of_voxels ** (1. / 3)))
+        grid_dimensions = (nr_of_voxels_per_side,
+                           nr_of_voxels_per_side,
+                           nr_of_voxels_per_side)
 
         print("Generating bottom layer with dimensions: " + str(grid_dimensions))
         voxel_array = np.zeros((grid_dimensions[0], grid_dimensions[1], grid_dimensions[2]), node_structure)
@@ -69,13 +70,12 @@ def generate_search_tree(mesh: bpy.types.Object):
             for yc in range(0, grid_dimensions[1]):
                 for xc in range(0, grid_dimensions[0]):
                     voxel_location = Vector((
-                        (voxel_size * xc) + box.min.x,
-                        (voxel_size * yc) + box.min.y,
-                        (voxel_size * zc) - box.min.z)
-                    )
+                        (voxel_size * xc) - box.extent.x,
+                        (voxel_size * yc) - box.extent.y,
+                        (voxel_size * zc) - box.extent.z
+                    ))
                     result = mesh.closest_point_on_mesh(voxel_location,
                                                         voxel_size)  # type: Tuple[bool, Vector, Vector, int]
-
                     if result[0]:
                         voxel_array[xc, yc, zc]['normal'] = (result[1].x, result[1].y, result[1].z)
                         voxel_array[xc, yc, zc]['color'] = (1.0, 1.0, 1.0, 1.0)  # No point in adding color atm, better to focus on render algorithm
