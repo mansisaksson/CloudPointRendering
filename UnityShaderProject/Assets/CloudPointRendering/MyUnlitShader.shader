@@ -40,8 +40,6 @@ Shader "Unlit/MyUnlitShader"
 			sampler2D _Layer6;
 			sampler2D _Layer7;
 
-			float4 _Layer0_ST;
-
 			/*
 			 x contains 1.0/width
 			 y contains 1.0/height
@@ -83,7 +81,7 @@ Shader "Unlit/MyUnlitShader"
 				// TODO: Taking camera origin, should probably offset with pixel location
 				float4 pixelPos = float4(0, 0, 0, 1);
 				//float4 pixelPos = mul(unity_ObjectToWorld, OUT.vertex);
-				//pixelPos = mul(unity_WorldToCamera, pixelPos);
+				pixelPos = mul(unity_WorldToCamera, pixelPos);
 				pixelPos.z = 0;
 				pixelPos = mul(unity_CameraToWorld, pixelPos);
 				pixelPos = mul(unity_WorldToObject, pixelPos);
@@ -108,50 +106,6 @@ Shader "Unlit/MyUnlitShader"
 
 			struct Math
 			{
-				static int GetIntersection(float fDst1, float fDst2, float3 P1, float3 P2, inout float3 Hit)
-				{
-					if ((fDst1 * fDst2) >= 0.0f) return 0;
-					if (fDst1 == fDst2) return 0;
-					Hit = P1 + (P2 - P1) * (-fDst1 / (fDst2 - fDst1));
-					return 1;
-				}
-
-				static int InBox(float3 Hit, float3 B1, float3 B2, const int Axis)
-				{
-					if (Axis == 1 && Hit.z > B1.z && Hit.z < B2.z && Hit.y > B1.y && Hit.y < B2.y) return 1;
-					if (Axis == 2 && Hit.z > B1.z && Hit.z < B2.z && Hit.x > B1.x && Hit.x < B2.x) return 1;
-					if (Axis == 3 && Hit.x > B1.x && Hit.x < B2.x && Hit.y > B1.y && Hit.y < B2.y) return 1;
-					return 0;
-				}
-
-				// returns true if line (L1, L2) intersects with the box (B1, B2)
-				// returns intersection point in Hit
-				static bool CheckLineBox(float3 B1, float3 B2, float3 L1, float3 L2, inout float3 Hit)
-				{
-					if (L2.x < B1.x && L1.x < B1.x) return false;
-					if (L2.x > B2.x && L1.x > B2.x) return false;
-					if (L2.y < B1.y && L1.y < B1.y) return false;
-					if (L2.y > B2.y && L1.y > B2.y) return false;
-					if (L2.z < B1.z && L1.z < B1.z) return false;
-					if (L2.z > B2.z && L1.z > B2.z) return false;
-					if (L1.x > B1.x && L1.x < B2.x &&
-						L1.y > B1.y && L1.y < B2.y &&
-						L1.z > B1.z && L1.z < B2.z)
-					{
-						Hit = L1;
-						return true;
-					}
-					if ((GetIntersection(L1.x - B1.x, L2.x - B1.x, L1, L2, Hit) && InBox(Hit, B1, B2, 1))
-						|| (GetIntersection(L1.y - B1.y, L2.y - B1.y, L1, L2, Hit) && InBox(Hit, B1, B2, 2))
-						|| (GetIntersection(L1.z - B1.z, L2.z - B1.z, L1, L2, Hit) && InBox(Hit, B1, B2, 3))
-						|| (GetIntersection(L1.x - B2.x, L2.x - B2.x, L1, L2, Hit) && InBox(Hit, B1, B2, 1))
-						|| (GetIntersection(L1.y - B2.y, L2.y - B2.y, L1, L2, Hit) && InBox(Hit, B1, B2, 2))
-						|| (GetIntersection(L1.z - B2.z, L2.z - B2.z, L1, L2, Hit) && InBox(Hit, B1, B2, 3)))
-						return true;
-
-					return false;
-				}
-
 				static int IsLineInBox(Box box, Line ray)
 				{
 					float3 boxExtent = box.Extent / 2;
@@ -173,18 +127,6 @@ Shader "Unlit/MyUnlitShader"
 						* step(abs(LMid.y * L.z - LMid.z * L.y), (boxExtent.y * LExt.z + boxExtent.z * LExt.y))
 						* step(abs(LMid.x * L.z - LMid.z * L.x), (boxExtent.x * LExt.z + boxExtent.z * LExt.x))
 						* step(abs(LMid.x * L.y - LMid.y * L.x), (boxExtent.x * LExt.y + boxExtent.y * LExt.x));
-						
-					// Use Separating Axis Test
-					// Separation vector from box center to line center is LMid, since the line is in box space
-					//if (abs(LMid.x) > boxExtent.x + LExt.x) return false;
-					//if (abs(LMid.y) > boxExtent.y + LExt.y) return false;
-					//if (abs(LMid.z) > boxExtent.z + LExt.z) return false;
-					//// Crossproducts of line and each axis
-					//if (abs(LMid.y * L.z - LMid.z * L.y) > (boxExtent.y * LExt.z + boxExtent.z * LExt.y)) return false;
-					//if (abs(LMid.x * L.z - LMid.z * L.x) > (boxExtent.x * LExt.z + boxExtent.z * LExt.x)) return false;
-					//if (abs(LMid.x * L.y - LMid.y * L.x) > (boxExtent.x * LExt.y + boxExtent.y * LExt.x)) return false;
-					//// No separating axis, the line intersects
-					//return true;
 				}
 			};
 
@@ -216,34 +158,19 @@ Shader "Unlit/MyUnlitShader"
 					}
 				}
 
-				static float2 convertToUVLocation(int3 voxelIndex, int3 dimensions, int2 textureSize)
+				static float2 convertToUVLocation(int3 voxelIndex, uint3 dimensions, uint2 textureSize)
 				{
-					//int3 test[8] = {
-					//	int3(0, 0, 0), // 0 + 0 + 0 = 0
-					//	int3(1, 0, 0), // 1 + 0 + 0 = 1
-					//	int3(0, 1, 0), // 0 + 2 + 0 = 2
-					//	int3(1, 1, 0), // 1 + 2 + 0 = 3
-
-					//	int3(0, 0, 1), // 0 + 0 + 4 = 4
-					//	int3(1, 0, 1), // 1 + 0 + 4 = 5
-					//	int3(0, 1, 1), // 0 + 2 + 4 = 6
-					//	int3(1, 1, 1)  // 1 + 2 + 4 = 7
-					//};
-					
 					// swap z and y axis
 					int oneDimentionalLocation = 
 						voxelIndex.x + 
 						(voxelIndex.z * dimensions.x) +
-						(voxelIndex.y * dimensions.x * 2);
+						(voxelIndex.y * dimensions.x * dimensions.y);
 
-					int2 texLocation = int2(
+					uint2 texLocation = uint2(
 						oneDimentionalLocation % (textureSize.x),
 						oneDimentionalLocation / (textureSize.x));
 
-					//float xcord = float(texLocation.x) / float(textureSize.x - 1);
-					//float ycord = float(texLocation.y) / float(textureSize.x - 1);
-					//return float2(xcord, ycord);
-					return float2(texLocation) / float2(textureSize - int2(1, 1));
+					return float2(texLocation) / float2(textureSize - uint2(1, 1));
 				}
 			};
 
@@ -260,15 +187,15 @@ Shader "Unlit/MyUnlitShader"
 				uint stackIndex = 0;
 				boxStack[0] = box;
 				
-				[loop] for (int count = 0; count < 20 && stackIndex != -1; count++)
+				[loop] for (int count = 0; count < 100 && stackIndex != -1; count++)
 				{
 					Box currentBox = boxStack[stackIndex];
 					stackIndex--;
 					
 					float3 voxelLength = (currentBox.Extent * 2.0);
 					float3 voxelLocation = (currentBox.Origin - currentBox.Extent) + rootBoxExtent; // + rootBoxExtent to offset to positive space
-					
 					fixed4 currentBoxColor = fixed4(0.0, 0.0, 0.0, 0.0);
+
 					int layerIndex = log2(round(rootBoxLength.x / voxelLength.x));
 
 					// Sample color of current box
@@ -285,9 +212,6 @@ Shader "Unlit/MyUnlitShader"
 						else if (layerIndex == 1) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer1_TexelSize.z, _Layer1_TexelSize.w));
 							currentBoxColor = tex2D(_Layer1, uv);
-							//return fixed4(float3(voxelIndex), 1);
-							//return fixed4(uv.x, 0, 0, 1);
-							//return fixed4(0, uv.y, 0, 1);
 						}
 						else if (layerIndex == 2) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer2_TexelSize.z, _Layer2_TexelSize.w));
@@ -308,16 +232,16 @@ Shader "Unlit/MyUnlitShader"
 						else if (layerIndex == 6) {
 							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer6_TexelSize.z, _Layer6_TexelSize.w));
 							currentBoxColor = tex2D(_Layer6, uv);
+
+							if (currentBoxColor.a != 0) {
+								return currentBoxColor;
+							}
 						}
-						/*else if (layerIndex == 7) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer7_TexelSize.z, _Layer7_TexelSize.w));
-							currentBoxColor = tex2D(_Layer7, uv);
-						}*/
 					}
 
 					int bIsValidColor = step(0.001, currentBoxColor.a);
 					color = (color * (1 - bIsValidColor)) + (currentBoxColor * bIsValidColor);
-					stackIndex = stackIndex - (1 - bIsValidColor); // -1 if currentBoxColor.a == 0
+					//stackIndex = stackIndex - (1 - bIsValidColor); // -1 if currentBoxColor.a == 0
 
 					if (bIsValidColor)
 					{
@@ -382,36 +306,9 @@ Shader "Unlit/MyUnlitShader"
 				float3 BoxExtent = float3(1.0, 1.0, 1.0);
 				Box RootBox = { float3(0, 0, 0), BoxExtent };
 				float3 rayDir = normalize(IN.localPos - IN.pixelLocalPos);
-
 				Line ray = { IN.pixelLocalPos, IN.pixelLocalPos + (rayDir * 100) };
 
-				/*Box childBoxes[8];
-				Helpers::SplitBoxes(RootBox, childBoxes);
-
-				//Helpers::SplitBoxes(childBoxes[4], childBoxes);
-
-				for (int i = 0; i < 8; i++)
-				{
-					if (Math::IsLineInBox(childBoxes[i], ray))
-					{
-						static fixed4 colors[8] = {
-							fixed4(0, 0, 0, 1),
-							fixed4(1, 0, 0, 1),
-							fixed4(0, 1, 0, 1),
-							fixed4(0, 0, 1, 1),
-							fixed4(1, 0, 1, 1),
-							fixed4(0, 1, 1, 1),
-							fixed4(1, 1, 0, 1),
-							fixed4(1, 1, 1, 1)
-						};
-						return colors[i];
-					}
-				}*/
-				//return Helpers::convertToUVLocation()
-
-				fixed4 color = TraceColorRecursive(RootBox, ray);
-				//return IN.pixelCameraPos;
-				return color;
+				return TraceColorRecursive(RootBox, ray);
             }
             ENDCG
         }
