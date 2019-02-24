@@ -15,27 +15,6 @@ import src.boundingBox as boundingBox
 
 
 def generate_search_tree(mesh: bpy.types.Object):
-    """node_structure = np.dtype([
-        ('normal', [
-            ('x', 'uint8'),
-            ('y', 'uint8'),
-            ('z', 'uint8')
-        ]),
-        ('color', [
-            ('r', 'uint8'),
-            ('g', 'uint8'),
-            ('b', 'uint8')
-        ]),
-        ('child_0', 'uint32'),
-        ('child_1', 'uint32'),
-        ('child_2', 'uint32'),
-        ('child_3', 'uint32'),
-        ('child_4', 'uint32'),
-        ('child_5', 'uint32'),
-        ('child_6', 'uint32'),
-        ('child_7', 'uint32')
-    ])"""
-    
     node_structure = np.dtype([
         ('normal', [
             ('x', 'float'),
@@ -159,19 +138,17 @@ def main():
         if obj.type == 'MESH':
             layers = generate_search_tree(obj)
 
-            for i, layer in enumerate(layers):
-                """path = dir + "\\export\\"
-                os.makedirs(path, exist_ok=True)
-                with open(path + "layer" + str(i) + ".txt", "wb") as file:
-                    file.write(layer)"""
+            data_block_size = 0
+            for layer in layers:
+                data_block_size += layer.shape[0] * layer.shape[1] * layer.shape[2]
 
-                data_block_size = layer.shape[0] * layer.shape[1] * layer.shape[2]
-                size = ceil(data_block_size ** (1 / 2.)), ceil(data_block_size ** (1 / 2.))
-                print("Saving data_block_size " + str(data_block_size) + " with image dimensions" + str(size))
-                image = bpy.data.images.new("MyImage", alpha=True, width=size[0], height=size[1])  # type: bpy.types.Image
+            size = ceil(data_block_size ** (1 / 2.)), ceil(data_block_size ** (1 / 2.))
+            print("Saving data_block_size " + str(data_block_size) + " with image dimensions" + str(size))
+            image = bpy.data.images.new("MyImage", alpha=True, width=size[0], height=size[1])  # type: bpy.types.Image
 
-                pixel_pos = 0
-                pixels = [None] * size[0] * size[1]
+            pixel_pos = 0  # (0, 0) = bottom left corner
+            pixels = [None] * size[0] * size[1]
+            for layer in reversed(layers):
                 for z in range(0, layer.shape[2]):
                     for y in range(0, layer.shape[1]):
                         for x in range(0, layer.shape[0]):
@@ -183,19 +160,19 @@ def main():
                             pixels[pixel_pos] = [r, g, b, a]
                             pixel_pos += 1
 
-                # We might not fill out the entire texture array, fill rest with empty color
-                for p in range(pixel_pos, size[0] * size[1]):
-                    pixels[p] = [0.0, 0.0, 0.0, 0.0]
+            # We might not fill out the entire texture array, fill rest with empty color
+            for p in range(pixel_pos, size[0] * size[1]):
+                pixels[p] = [0.0, 0.0, 0.0, 0.0]
 
-                # flatten list
-                pixels = [chan for px in pixels for chan in px]
+            # flatten list
+            pixels = [chan for px in pixels for chan in px]
 
-                # assign pixels
-                image.pixels = pixels
+            # assign pixels
+            image.pixels = pixels
 
-                # write image
-                image.filepath_raw = dir + "\\export\\" "layer" + str(len(layers) - i - 1) + ".png"
-                image.file_format = 'PNG'
-                image.save()
+            # write image
+            image.filepath_raw = dir + "\\export\\" "voxel_octree_depth." + str(len(layers) - 1) + ".png"
+            image.file_format = 'PNG'
+            image.save()
 
 main()

@@ -6,20 +6,14 @@ Shader "Unlit/MyUnlitShader"
 {
 	Properties
 	{
-		_Layer0("_Layer0", 2D) = "white" {}
-		_Layer1("_Layer1", 2D) = "white" {}
-		_Layer2("_Layer2", 2D) = "white" {}
-		_Layer3("_Layer3", 2D) = "white" {}
-		_Layer4("_Layer4", 2D) = "white" {}
-		_Layer5("_Layer5", 2D) = "white" {}
-		_Layer6("_Layer6", 2D) = "white" {}
+		_OctreeTex("_OctreeTex", 2D) = "white" {}
 	}
 	SubShader
 	{
 		Tags { "Queue" = "Transparent" "RenderType" = "Transparent" }
 		LOD 100
 
-		ZWrite Off
+		//ZWrite Off
 		Blend SrcAlpha OneMinusSrcAlpha
 
 		Pass
@@ -31,14 +25,7 @@ Shader "Unlit/MyUnlitShader"
 
 			#include "UnityCG.cginc"
 
-			sampler2D _Layer0;
-			sampler2D _Layer1;
-			sampler2D _Layer2;
-			sampler2D _Layer3;
-			sampler2D _Layer4;
-			sampler2D _Layer5;
-			sampler2D _Layer6;
-			sampler2D _Layer7;
+			sampler2D _OctreeTex;
 
 			/*
 			 x contains 1.0/width
@@ -46,14 +33,7 @@ Shader "Unlit/MyUnlitShader"
 			 z contains width
 			 w contains height
 			*/
-			float4 _Layer0_TexelSize;
-			float4 _Layer1_TexelSize;
-			float4 _Layer2_TexelSize;
-			float4 _Layer3_TexelSize;
-			float4 _Layer4_TexelSize;
-			float4 _Layer5_TexelSize;
-			float4 _Layer6_TexelSize;
-			float4 _Layer7_TexelSize;
+			float4 _OctreeTex_TexelSize;
 
 			struct appdata
 			{
@@ -79,8 +59,8 @@ Shader "Unlit/MyUnlitShader"
 				OUT.color = IN.color;
 
 				// TODO: Taking camera origin, should probably offset with pixel location
-				float4 pixelPos = float4(0, 0, 0, 1);
-				//float4 pixelPos = mul(unity_ObjectToWorld, OUT.vertex);
+				//float4 pixelPos = float4(0, 0, 0, 1);
+				float4 pixelPos = mul(unity_ObjectToWorld, OUT.vertex);
 				pixelPos = mul(unity_WorldToCamera, pixelPos);
 				pixelPos.z = 0;
 				pixelPos = mul(unity_CameraToWorld, pixelPos);
@@ -139,12 +119,12 @@ Shader "Unlit/MyUnlitShader"
 					static float3 Indices[8] =
 					{
 						float3(-1, -1, -1),
-						float3(-1, -1,  1),
 						float3( 1, -1, -1),
+						float3(-1, -1,  1),
 						float3( 1, -1,  1),
 						float3(-1,  1, -1),
-						float3(-1,  1,  1),
 						float3( 1,  1, -1),
+						float3(-1,  1,  1),
 						float3( 1,  1,  1)
 					};
 					for (int i = 0; i < 8; i++)
@@ -158,19 +138,45 @@ Shader "Unlit/MyUnlitShader"
 					}
 				}
 
-				static float2 convertToUVLocation(int3 voxelIndex, uint3 dimensions, uint2 textureSize)
+				static float2 convertToUVLocation(int3 voxelIndex, uint3 dimensions, uint2 textureSize, uint layerIndex)
 				{
+					uint layerSizes[7] = {
+						0,
+						1 * 1 * 1,
+						2 * 2 * 2,
+						4 * 4 * 4,
+						8 * 8 * 8,
+						16 * 16 * 16,
+						32 * 32 * 32
+					};
+
+					uint layerOffsets[7] = {
+						0,
+						layerSizes[1],
+						layerSizes[1] + layerSizes[2],
+						layerSizes[1] + layerSizes[2] + layerSizes[3],
+						layerSizes[1] + layerSizes[2] + layerSizes[3] + layerSizes[4],
+						layerSizes[1] + layerSizes[2] + layerSizes[3] + layerSizes[4] + layerSizes[5],
+						layerSizes[1] + layerSizes[2] + layerSizes[3] + layerSizes[4] + layerSizes[5] + layerSizes[6]
+					};
+					
+
 					// swap z and y axis
-					int oneDimentionalLocation = 
-						voxelIndex.x + 
+					int oneDimentionalLocation =
+						voxelIndex.x +
 						(voxelIndex.z * dimensions.x) +
-						(voxelIndex.y * dimensions.x * dimensions.y);
+						(voxelIndex.y * dimensions.x * dimensions.y) + layerOffsets[layerIndex];
 
 					uint2 texLocation = uint2(
 						oneDimentionalLocation % (textureSize.x),
 						oneDimentionalLocation / (textureSize.x));
 
-					return float2(texLocation) / float2(textureSize - uint2(1, 1));
+					
+					float2 pixelSize = float2(1.0, 1.0) / float2(textureSize);
+					float2 halfPixel = pixelSize / 2.0;
+
+					//return (float2(texLocation) / float2(textureSize - uint2(1, 1))) + halfPixel;
+					return float2(pixelSize.x * texLocation.x, pixelSize.y * texLocation.y) + halfPixel;
 				}
 			};
 
@@ -187,57 +193,27 @@ Shader "Unlit/MyUnlitShader"
 				uint stackIndex = 0;
 				boxStack[0] = box;
 				
-				[loop] for (int count = 0; count < 100 && stackIndex != -1; count++)
+				[loop] for (int count = 0; count < 30; count++)
 				{
 					Box currentBox = boxStack[stackIndex];
 					stackIndex--;
-					
+
 					float3 voxelLength = (currentBox.Extent * 2.0);
 					float3 voxelLocation = (currentBox.Origin - currentBox.Extent) + rootBoxExtent; // + rootBoxExtent to offset to positive space
-					fixed4 currentBoxColor = fixed4(0.0, 0.0, 0.0, 0.0);
 
 					int layerIndex = log2(round(rootBoxLength.x / voxelLength.x));
 
-					// Sample color of current box
-					{
-						int3 voxelsPerSide = round(rootBoxLength / voxelLength);
-						int3 voxelIndex = round((voxelLocation / rootBoxLength) * voxelsPerSide);
+					uint3 voxelsPerSide = round(rootBoxLength / voxelLength);
+					uint3 voxelIndex = round((voxelLocation / rootBoxLength) * voxelsPerSide);
 
-						// TODO: branch is expensive, sample all children instead
-						float2 uv = float2(0, 0);
-						if (layerIndex == 0) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer0_TexelSize.z, _Layer0_TexelSize.w));
-							currentBoxColor = tex2D(_Layer0, uv);
-						}
-						else if (layerIndex == 1) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer1_TexelSize.z, _Layer1_TexelSize.w));
-							currentBoxColor = tex2D(_Layer1, uv);
-						}
-						else if (layerIndex == 2) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer2_TexelSize.z, _Layer2_TexelSize.w));
-							currentBoxColor = tex2D(_Layer2, uv);
-						}
-						else if (layerIndex == 3) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer3_TexelSize.z, _Layer3_TexelSize.w));
-							currentBoxColor = tex2D(_Layer3, uv);
-						}
-						else if (layerIndex == 4) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer4_TexelSize.z, _Layer4_TexelSize.w));
-							currentBoxColor = tex2D(_Layer4, uv);
-						}
-						else if (layerIndex == 5) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer5_TexelSize.z, _Layer5_TexelSize.w));
-							currentBoxColor = tex2D(_Layer5, uv);
-						}
-						else if (layerIndex == 6) {
-							uv = Helpers::convertToUVLocation(voxelIndex, voxelsPerSide, int2(_Layer6_TexelSize.z, _Layer6_TexelSize.w));
-							currentBoxColor = tex2D(_Layer6, uv);
+					float2 uv = Helpers::convertToUVLocation(
+						voxelIndex,
+						voxelsPerSide,
+						int2(_OctreeTex_TexelSize.z, _OctreeTex_TexelSize.w),
+						layerIndex
+					);
 
-							if (currentBoxColor.a != 0) {
-								return currentBoxColor;
-							}
-						}
-					}
+					fixed4 currentBoxColor = tex2D(_OctreeTex, uv);
 
 					int bIsValidColor = step(0.001, currentBoxColor.a);
 					color = (color * (1 - bIsValidColor)) + (currentBoxColor * bIsValidColor);
@@ -251,7 +227,7 @@ Shader "Unlit/MyUnlitShader"
 						Helpers::SplitBoxes(currentBox, ChildBoxes);
 
 						/*int index = 3;
-						if (layerIndex == 0)
+						if (log2(round(rootBoxLength.x / voxelLength.x)) == 0)
 							return Math::IsLineInBox(ChildBoxes[index], ray) ? fixed4(1, 1, 1, 1) : fixed4(0, 0, 0, 1);*/
 
 						// Collect distances to boxes
