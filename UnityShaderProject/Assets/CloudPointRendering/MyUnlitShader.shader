@@ -46,28 +46,18 @@ Shader "Unlit/MyUnlitShader"
 			{
 				float4 vertex : POSITION0;
 				float4 color : COLOR;
-				float2 texcoord : TEXCOORD0;
 				float3 localPos : POSITION1;
-				float3 pixelLocalPos : POSITION2;
+				float3 dir : POSITION3;
 			};
 
 			v2f vert(appdata IN)
 			{
 				v2f OUT;
 				OUT.vertex = UnityObjectToClipPos(IN.vertex);
-				OUT.texcoord = IN.texcoord;
 				OUT.color = IN.color;
 
-				// TODO: Taking camera origin, should probably offset with pixel location
-				//float4 pixelPos = float4(0, 0, 0, 1);
-				float4 pixelPos = mul(unity_ObjectToWorld, OUT.vertex);
-				pixelPos = mul(unity_WorldToCamera, pixelPos);
-				pixelPos.z = 0;
-				pixelPos = mul(unity_CameraToWorld, pixelPos);
-				pixelPos = mul(unity_WorldToObject, pixelPos);
-
-				OUT.pixelLocalPos = pixelPos.xyz;
 				OUT.localPos = IN.vertex.xyz;
+				OUT.dir = ObjSpaceViewDir(IN.vertex);
 
 				return OUT;
 			}
@@ -190,10 +180,10 @@ Shader "Unlit/MyUnlitShader"
 
 				// Setup stack
 				Box boxStack[100]; // TODO: How big should i make the stack?
-				uint stackIndex = 0;
+				int stackIndex = 0;
 				boxStack[0] = box;
 				
-				[loop] for (int count = 0; count < 30; count++)
+				[loop] for (int count = 0; count < 100 && stackIndex > -1; count++)
 				{
 					Box currentBox = boxStack[stackIndex];
 					stackIndex--;
@@ -218,11 +208,12 @@ Shader "Unlit/MyUnlitShader"
 					int bIsValidColor = step(0.001, currentBoxColor.a);
 					color = (color * (1 - bIsValidColor)) + (currentBoxColor * bIsValidColor);
 					//stackIndex = stackIndex - (1 - bIsValidColor); // -1 if currentBoxColor.a == 0
+					
+					if (bIsValidColor && layerIndex == 6)
+						return color;
 
-					if (bIsValidColor)
+					//if (bIsValidColor)
 					{
-						color = currentBoxColor;
-
 						Box ChildBoxes[8];
 						Helpers::SplitBoxes(currentBox, ChildBoxes);
 
@@ -269,7 +260,7 @@ Shader "Unlit/MyUnlitShader"
 						for (i = 0; i < 8; i++) {
 							int sIndex = sortedIndices[i];
 							boxStack[stackIndex + 1] = ChildBoxes[sIndex];
-							stackIndex = stackIndex + (1 * boxTraceResults[sIndex]); // Only increment stack if we hit the box
+							stackIndex = stackIndex + (1 * boxTraceResults[sIndex] * bIsValidColor); // Only increment stack if we hit the box
 						}
 					}
 				}
@@ -281,8 +272,8 @@ Shader "Unlit/MyUnlitShader"
             {
 				float3 BoxExtent = float3(1.0, 1.0, 1.0);
 				Box RootBox = { float3(0, 0, 0), BoxExtent };
-				float3 rayDir = normalize(IN.localPos - IN.pixelLocalPos);
-				Line ray = { IN.pixelLocalPos, IN.pixelLocalPos + (rayDir * 100) };
+				float3 rayDir = (IN.dir);
+				Line ray = { IN.localPos + (rayDir * 100), IN.localPos - (rayDir * 100) };
 
 				return TraceColorRecursive(RootBox, ray);
             }
