@@ -30,7 +30,7 @@ def generate_search_tree(mesh: bpy.types.Object):
     ])
 
     children_per_node = 8  # needs to be ^3 TODO: need to make sure the voxel size fits with the child count
-    nr_of_voxel_layers = 6
+    nr_of_voxel_layers = 7
 
     def generate_bottom_layer():
         box = boundingBox.create_box(mesh.bound_box)
