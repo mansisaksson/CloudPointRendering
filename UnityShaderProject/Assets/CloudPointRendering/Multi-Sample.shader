@@ -233,9 +233,7 @@
 					Box currentBox = boxStack[stackIndex];
 					stackIndex = clamp(stackIndex - 1, 0, 9999);
 
-					int bIsValidColor = step(0.001, currentBox.Color);
-					int bHasLowerLayerIndex = step(bestBoxLayerIndex, currentBox.LayerIndex); // -1 since equals return true and we want bigger
-					int bIsBetterBox = bIsValidColor * bHasLowerLayerIndex;
+					int bIsBetterBox = step(bestBoxLayerIndex, currentBox.LayerIndex); // -1 since equals return true and we want bigger
 
 					bestBoxColor = (bestBoxColor * (1 - bIsBetterBox)) + (currentBox.Color * bIsBetterBox);
 					bestBoxLayerIndex = (bestBoxLayerIndex * (1 - bIsBetterBox)) + (currentBox.LayerIndex * bIsBetterBox);
@@ -266,7 +264,7 @@
 						int sIndex = sortedIndices[i];
 						Box childBox = ChildBoxes[sIndex];
 
-						int bIsValidColor = step(0.001, childBox.Color);
+						int bIsValidColor = step(0.001, childBox.Color.a);
 						boxStack[stackIndex + 1] = childBox;
 						stackIndex = stackIndex + (1 * bIsValidColor); // Only increment stack if we hit a box with valid color
 					}

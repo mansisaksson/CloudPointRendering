@@ -80,7 +80,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _OctreeTex:
-        m_Texture: {fileID: 2800000, guid: ab2dfc4a889a7484391c1e020c67a095, type: 3}
+        m_Texture: {fileID: 2800000, guid: 94225f9a53c6c8f4ab56bed80b989378, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _ParallaxMap:
