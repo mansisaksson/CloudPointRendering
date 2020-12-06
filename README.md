@@ -1,4 +1,4 @@
-# Cloud Point Rendering, using Unity Shaders
+# Point Cloud Rendering, using Unity Shaders
 
 Created as an experiment to try and render point data by storing the points in a sorted octree texture, and then run a point-finding algorithm on the GPU.
 
