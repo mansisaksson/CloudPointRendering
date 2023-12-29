@@ -5,4 +5,4 @@ Created as an experiment to try and render point data by storing the points in a
 Abandoned since it became apparent that the point-finding algorithm was not suited for the GPU, and created too many branching paths.
 
 The end result did however end up looking pretty cool.
-![Final Result](https://raw.githubusercontent.com/mansisaksson/PointCloudRendering/master/Docs/side-by-side.PNG)
+![Final Result](https://raw.githubusercontent.com/mansisaksson/PointCloudRendering/master/Docs/side-by-side.png)
